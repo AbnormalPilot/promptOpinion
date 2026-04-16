@@ -97,89 +97,93 @@ class CheckDrugInteractionsTool implements IMcpTool {
           ),
       },
       async ({ medication_name, current_medications }) => {
-        // 1. Resolve primary drug to RxCUI
-        let primaryRxCUI: string | null = null;
         try {
-          primaryRxCUI = await resolveRxCUI(medication_name);
-        } catch (err: any) {
-          return textResponse(
-            JSON.stringify(
-              { error: `Failed to resolve RxCUI for "${medication_name}": ${err.message}` },
-              null,
-              2
-            )
-          );
-        }
+          // 1. Resolve primary drug to RxCUI
+          let primaryRxCUI: string | null = null;
+          try {
+            primaryRxCUI = await resolveRxCUI(medication_name);
+          } catch (err: any) {
+            return textResponse(
+              JSON.stringify(
+                { error: `Failed to resolve RxCUI for "${medication_name}": ${err.message}` },
+                null,
+                2
+              )
+            );
+          }
 
-        if (!primaryRxCUI) {
-          return textResponse(
-            JSON.stringify(
-              {
-                error: `Could not find an RxCUI for "${medication_name}". Verify the spelling or try a generic name.`,
-              },
-              null,
-              2
-            )
-          );
-        }
+          if (!primaryRxCUI) {
+            return textResponse(
+              JSON.stringify(
+                {
+                  error: `Could not find an RxCUI for "${medication_name}". Verify the spelling or try a generic name.`,
+                },
+                null,
+                2
+              )
+            );
+          }
 
-        // 2. Fetch single-drug interactions from DrugBank via RxNorm
-        let interactions: { drug: string; description: string; severity: string }[] = [];
-        try {
-          interactions = await getSingleDrugInteractions(primaryRxCUI);
-        } catch (_err) {
-          // Non-fatal — continue with empty list
-        }
+          // 2. Fetch single-drug interactions from DrugBank via RxNorm
+          let interactions: { drug: string; description: string; severity: string }[] = [];
+          try {
+            interactions = await getSingleDrugInteractions(primaryRxCUI);
+          } catch (_err) {
+            // Non-fatal — continue with empty list
+          }
 
-        // 3. Pairwise interactions against current medications (if provided)
-        const pairwise_interactions: {
-          drug1: string;
-          drug2: string;
-          description: string;
-          severity: string;
-        }[] = [];
+          // 3. Pairwise interactions against current medications (if provided)
+          const pairwise_interactions: {
+            drug1: string;
+            drug2: string;
+            description: string;
+            severity: string;
+          }[] = [];
 
-        if (current_medications && current_medications.length > 0) {
-          for (const med of current_medications) {
-            let medRxCUI: string | null = null;
-            try {
-              medRxCUI = await resolveRxCUI(med);
-            } catch (_err) {
-              // Skip unresolvable medication
-              continue;
-            }
+          if (current_medications && current_medications.length > 0) {
+            for (const med of current_medications) {
+              let medRxCUI: string | null = null;
+              try {
+                medRxCUI = await resolveRxCUI(med);
+              } catch (_err) {
+                // Skip unresolvable medication
+                continue;
+              }
 
-            if (!medRxCUI) continue;
+              if (!medRxCUI) continue;
 
-            let pairs: { description: string; severity: string }[] = [];
-            try {
-              pairs = await getPairwiseInteractions(primaryRxCUI, medRxCUI);
-            } catch (_err) {
-              continue;
-            }
+              let pairs: { description: string; severity: string }[] = [];
+              try {
+                pairs = await getPairwiseInteractions(primaryRxCUI, medRxCUI);
+              } catch (_err) {
+                continue;
+              }
 
-            for (const pair of pairs) {
-              pairwise_interactions.push({
-                drug1: medication_name,
-                drug2: med,
-                description: pair.description,
-                severity: pair.severity,
-              });
+              for (const pair of pairs) {
+                pairwise_interactions.push({
+                  drug1: medication_name,
+                  drug2: med,
+                  description: pair.description,
+                  severity: pair.severity,
+                });
+              }
             }
           }
+
+          const response: Record<string, unknown> = {
+            medication: medication_name,
+            rxcui: primaryRxCUI,
+            interactions,
+          };
+
+          if (current_medications !== undefined) {
+            response.pairwise_interactions = pairwise_interactions;
+          }
+
+          return textResponse(JSON.stringify(response, null, 2));
+        } catch (err: any) {
+          return textResponse(`Error: ${err.message}`);
         }
-
-        const response: Record<string, unknown> = {
-          medication: medication_name,
-          rxcui: primaryRxCUI,
-          interactions,
-        };
-
-        if (current_medications !== undefined) {
-          response.pairwise_interactions = pairwise_interactions;
-        }
-
-        return textResponse(JSON.stringify(response, null, 2));
       }
     );
   }
