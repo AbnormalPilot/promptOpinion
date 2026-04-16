@@ -9,13 +9,15 @@ class FetchMedicationListTool implements IMcpTool {
       "fetch_medication_list",
       "Fetches current medications for a patient from FHIR R4",
       {
-        patient_id: z.string().describe("FHIR Patient resource ID"),
+        patient_id: z.string().optional().describe("FHIR Patient resource ID (auto-resolved from SHARP context if omitted)"),
         status: z.enum(["active", "completed", "all"]).default("active").describe("Medication status filter"),
       },
       async ({ patient_id, status }) => {
+        const pid = patient_id || fhirConfig?.patientId;
+        if (!pid) return textResponse("Error: No patient_id provided via argument or SHARP context");
         const fhir = new FhirClient(fhirConfig);
 
-        const params: Record<string, string> = { patient: patient_id };
+        const params: Record<string, string> = { patient: pid };
         if (status !== "all") params.status = status;
 
         const medications = await fhir.search("MedicationRequest", params);
@@ -35,7 +37,7 @@ class FetchMedicationListTool implements IMcpTool {
           requester: m.requester?.display || null,
         }));
 
-        return textResponse(JSON.stringify({ patientId: patient_id, medications: result }, null, 2));
+        return textResponse(JSON.stringify({ patientId: pid, medications: result }, null, 2));
       }
     );
   }

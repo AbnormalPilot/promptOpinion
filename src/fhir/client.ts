@@ -5,6 +5,7 @@ const DEFAULT_FHIR_URL = process.env.FHIR_BASE_URL || "https://hapi.fhir.org/bas
 export interface FhirConfig {
   url?: string;
   token?: string;
+  patientId?: string; // resolved from SHARP headers
 }
 
 /** Simple FHIR R4 HTTP client */

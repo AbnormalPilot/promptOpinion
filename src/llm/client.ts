@@ -14,16 +14,24 @@ function getGroq(): Groq {
 /** Call Groq LLM with system prompt + user message. Returns raw text. */
 export async function callLLM(systemPrompt: string, userMessage: string): Promise<string> {
   try {
-    const response = await getGroq().chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: systemPrompt + "\n\nIMPORTANT: Respond with valid JSON only. No markdown, no code fences." },
-        { role: "user", content: userMessage },
-      ],
-      temperature: 0.2,
-      max_tokens: 4096,
-      response_format: { type: "json_object" },
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    const response = await getGroq().chat.completions.create(
+      {
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { role: "system", content: systemPrompt + "\n\nIMPORTANT: Respond with valid JSON only. No markdown, no code fences." },
+          { role: "user", content: userMessage },
+        ],
+        temperature: 0.2,
+        max_tokens: 4096,
+        response_format: { type: "json_object" },
+      },
+      { signal: controller.signal }
+    );
+
+    clearTimeout(timeout);
 
     return response.choices[0]?.message?.content || "{}";
   } catch (err: any) {

@@ -9,10 +9,12 @@ class FetchClinicalHistoryTool implements IMcpTool {
       "fetch_clinical_history",
       "Fetches recent encounters and observations for prior auth clinical justification",
       {
-        patient_id: z.string().describe("FHIR Patient resource ID"),
+        patient_id: z.string().optional().describe("FHIR Patient resource ID (auto-resolved from SHARP context if omitted)"),
         lookback_days: z.number().default(180).describe("How many days of history to fetch"),
       },
       async ({ patient_id, lookback_days }) => {
+        const pid = patient_id || fhirConfig?.patientId;
+        if (!pid) return textResponse("Error: No patient_id provided via argument or SHARP context");
         const fhir = new FhirClient(fhirConfig);
 
         const cutoffDate = new Date();
@@ -20,12 +22,12 @@ class FetchClinicalHistoryTool implements IMcpTool {
         const dateParam = `ge${cutoffDate.toISOString().split("T")[0]}`;
 
         const [encounters, observations] = await Promise.all([
-          fhir.search("Encounter", { patient: patient_id, date: dateParam, _sort: "-date", _count: "10" }),
-          fhir.search("Observation", { patient: patient_id, date: dateParam, _sort: "-date", _count: "20" }),
+          fhir.search("Encounter", { patient: pid, date: dateParam, _sort: "-date", _count: "10" }),
+          fhir.search("Observation", { patient: pid, date: dateParam, _sort: "-date", _count: "20" }),
         ]);
 
         const result = {
-          patientId: patient_id,
+          patientId: pid,
           lookbackDays: lookback_days,
           encounters: encounters.map((e: any) => ({
             type: e.type?.[0]?.coding?.[0]?.display || e.type?.[0]?.text || "Unknown",

@@ -8,16 +8,18 @@ class FetchPatientContextTool implements IMcpTool {
     server.tool(
       "fetch_patient_context",
       "Fetches patient demographics and active conditions from FHIR R4",
-      { patient_id: z.string().describe("FHIR Patient resource ID") },
+      { patient_id: z.string().optional().describe("FHIR Patient resource ID (auto-resolved from SHARP context if omitted)") },
       async ({ patient_id }) => {
+        const pid = patient_id || fhirConfig?.patientId;
+        if (!pid) return textResponse("Error: No patient_id provided via argument or SHARP context");
         const fhir = new FhirClient(fhirConfig);
 
         const [patient, conditions] = await Promise.all([
-          fhir.read(`Patient/${patient_id}`),
-          fhir.search("Condition", { patient: patient_id, "clinical-status": "active" }),
+          fhir.read(`Patient/${pid}`),
+          fhir.search("Condition", { patient: pid, "clinical-status": "active" }),
         ]);
 
-        if (!patient) return textResponse(`Patient ${patient_id} not found`);
+        if (!patient) return textResponse(`Patient ${pid} not found`);
 
         const result = {
           patient: {
