@@ -12,12 +12,18 @@ interface A2aAppConfig {
   fhirExtensionUri?: string;
 }
 
+const APP_NAME = "clinicalcontext-prior-auth";
+
 export function createA2aApp(config: A2aAppConfig) {
   const { agent, name, description, url, version = "1.0.0", fhirExtensionUri } = config;
 
+  const sessionService = new InMemorySessionService();
+
+  // Runner requires appName in addition to agent and sessionService
   const runner = new Runner({
+    appName: APP_NAME,
     agent,
-    sessionService: new InMemorySessionService(),
+    sessionService,
   });
 
   // Agent card — A2A v1 compliant discovery document
@@ -83,25 +89,48 @@ export function createA2aApp(config: A2aAppConfig) {
           return;
         }
 
-        // Build session state from metadata (FHIR context)
+        // Build session state from metadata (FHIR context).
+        // stateDelta is passed to runAsync so the beforeModelCallback and tools can read it.
         const stateDelta: Record<string, any> = {};
         if (message.metadata) {
+          // Store raw metadata so fhir-hook can normalize key conventions
           stateDelta["a2aMetadata"] = message.metadata;
-          // Also flatten for direct tool access
+          // Also flatten directly so tools that skip the hook still see the values
           if (message.metadata.fhirUrl) stateDelta["fhirUrl"] = message.metadata.fhirUrl;
           if (message.metadata.fhirToken) stateDelta["fhirToken"] = message.metadata.fhirToken;
           if (message.metadata.patientId) stateDelta["patientId"] = message.metadata.patientId;
+          // snake_case aliases
+          if (message.metadata.fhir_url) stateDelta["fhirUrl"] = message.metadata.fhir_url;
+          if (message.metadata.fhir_token) stateDelta["fhirToken"] = message.metadata.fhir_token;
+          if (message.metadata.patient_id) stateDelta["patientId"] = message.metadata.patient_id;
         }
 
         const contextId = message.contextId || uuidv4();
         const sessionId = contextId;
+        const userId = "user";
 
-        // Run the agent
+        // Ensure the session exists before calling runAsync — createSession is idempotent
+        // (InMemorySessionService ignores duplicate creates for the same sessionId)
+        try {
+          await sessionService.createSession({
+            appName: APP_NAME,
+            userId,
+            sessionId,
+            state: stateDelta,
+          });
+        } catch {
+          // Session may already exist from a previous turn in the same context — that's fine
+        }
+
+        console.log(`[a2a] message/send sessionId=${sessionId} textLen=${text.length}`);
+
+        // Run the agent — pass stateDelta so FHIR context is available from turn 1
         let finalText = "";
-        const events = runner.run({
-          userId: "user",
+        const events = runner.runAsync({
+          userId,
           sessionId,
           newMessage: { role: "user", parts: [{ text }] },
+          stateDelta,
         });
 
         for await (const event of events) {
@@ -110,6 +139,10 @@ export function createA2aApp(config: A2aAppConfig) {
               if ((part as any).text) finalText += (part as any).text;
             }
           }
+        }
+
+        if (!finalText) {
+          console.warn(`[a2a] Agent returned empty response for sessionId=${sessionId}`);
         }
 
         // Return A2A response
@@ -134,7 +167,8 @@ export function createA2aApp(config: A2aAppConfig) {
         });
       }
     } catch (err: any) {
-      console.error("A2A request error:", err);
+      console.error("[a2a] Request error:", err.message ?? err);
+      console.error("[a2a] Stack:", err.stack);
       res.status(500).json({
         jsonrpc: "2.0",
         error: { code: -32000, message: err.message || "Internal error" },

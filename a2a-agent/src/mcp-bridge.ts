@@ -2,6 +2,8 @@
  * MCP Bridge — wraps each MCP tool as a Google ADK FunctionTool.
  * Reads FHIR credentials from ADK session state, injects as SHARP headers
  * when calling the MCP server.
+ *
+ * NOTE: toolContext.state is an ADK State object — must use .get(), not bracket indexing.
  */
 import { FunctionTool } from "@google/adk";
 import axios from "axios";
@@ -25,25 +27,57 @@ async function callMcpTool(
   if (state["fhirToken"]) headers["x-fhir-access-token"] = state["fhirToken"];
   if (state["patientId"]) headers["x-patient-id"] = state["patientId"];
 
-  const res = await axios.post(
-    `${MCP_SERVER_URL}/mcp`,
-    {
-      jsonrpc: "2.0",
-      id: Date.now(),
-      method: "tools/call",
-      params: { name: toolName, arguments: args },
-    },
-    { headers, timeout: 30000, responseType: "text" }
-  );
+  let res: any;
+  try {
+    res = await axios.post(
+      `${MCP_SERVER_URL}/mcp`,
+      {
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: { name: toolName, arguments: args },
+      },
+      { headers, timeout: 30000, responseType: "text" }
+    );
+  } catch (err: any) {
+    if (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT") {
+      console.error(`[mcp-bridge] Timeout calling tool ${toolName}`);
+      return { error: `Timeout calling MCP tool ${toolName}` };
+    }
+    console.error(`[mcp-bridge] Network error calling tool ${toolName}:`, err.message);
+    return { error: `Network error calling MCP tool ${toolName}: ${err.message}` };
+  }
 
-  // Parse SSE response
-  const data = String(res.data);
-  const match = data.match(/data: (.+)/);
-  if (!match) return { error: "No response from MCP server" };
+  // Parse SSE or plain JSON response.
+  // SSE format: one or more "data: <json>\n" lines; we want the last non-empty data line.
+  const raw = String(res.data).trim();
 
-  const parsed = JSON.parse(match[1]);
+  let jsonStr: string | null = null;
+
+  // Try SSE: collect all "data: ..." lines and take the last one
+  const sseLines = raw.split(/\r?\n/).filter((l) => l.startsWith("data: "));
+  if (sseLines.length > 0) {
+    jsonStr = sseLines[sseLines.length - 1].slice("data: ".length).trim();
+  } else if (raw.startsWith("{") || raw.startsWith("[")) {
+    // Plain JSON fallback
+    jsonStr = raw;
+  }
+
+  if (!jsonStr) {
+    console.error(`[mcp-bridge] No parseable response from MCP for tool ${toolName}:`, raw.slice(0, 200));
+    return { error: "No response from MCP server" };
+  }
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch (e) {
+    console.error(`[mcp-bridge] Failed to parse MCP response JSON for tool ${toolName}:`, jsonStr.slice(0, 200));
+    return { error: "Invalid JSON response from MCP server" };
+  }
+
   const text = parsed?.result?.content?.[0]?.text;
-  if (!text) return parsed?.result || parsed;
+  if (!text) return parsed?.result ?? parsed;
 
   try {
     return JSON.parse(text);
@@ -60,13 +94,14 @@ function makeTool(
   return new FunctionTool({
     name,
     description,
-    parameters: z.object(schema),
+    parameters: z.object(schema) as any,
     execute: async (input: any, toolContext: any) => {
-      const state = {};
-      // Extract state from toolContext if available
+      // toolContext.state is an ADK State object — use .get() to read values
+      const state: Record<string, any> = {};
       if (toolContext?.state) {
-        for (const [k, v] of Object.entries(toolContext.state)) {
-          (state as any)[k] = v;
+        for (const key of ["fhirUrl", "fhir_url", "fhirToken", "fhir_token", "patientId", "patient_id"]) {
+          const val = toolContext.state.get(key);
+          if (val !== undefined) state[key] = val;
         }
       }
       return await callMcpTool(name, input, state);

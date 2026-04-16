@@ -3,9 +3,13 @@
  * and writes it to ADK session state so tools can access it.
  *
  * FHIR credentials NEVER appear in the LLM prompt.
+ *
+ * ADK calls beforeModelCallback with { context: CallbackContext, request: LlmRequest }.
+ * context.state is an ADK State object — must use .get()/.set(), not bracket indexing.
  */
-export function extractFhirContext(ctx: any): undefined {
-  const meta = ctx.state?.["a2aMetadata"] as Record<string, string> | undefined;
+export function extractFhirContext(params: { context: any; request: any }): undefined {
+  const { context } = params;
+  const meta = context.state?.get?.("a2aMetadata") as Record<string, string> | undefined;
   if (!meta) return undefined;
 
   // Support multiple key conventions (camelCase, snake_case, header-style)
@@ -14,16 +18,16 @@ export function extractFhirContext(ctx: any): undefined {
   const patientId = meta["patientId"] ?? meta["patient_id"] ?? meta["x-patient-id"];
 
   if (url) {
-    ctx.state["fhirUrl"] = url;
-    ctx.state["fhir_url"] = url;
+    context.state.set("fhirUrl", url);
+    context.state.set("fhir_url", url);
   }
   if (token) {
-    ctx.state["fhirToken"] = token;
-    ctx.state["fhir_token"] = token;
+    context.state.set("fhirToken", token);
+    context.state.set("fhir_token", token);
   }
   if (patientId) {
-    ctx.state["patientId"] = patientId;
-    ctx.state["patient_id"] = patientId;
+    context.state.set("patientId", patientId);
+    context.state.set("patient_id", patientId);
   }
 
   return undefined;
