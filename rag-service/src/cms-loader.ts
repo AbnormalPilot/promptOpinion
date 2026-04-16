@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const CMS_API_BASE = "https://api.coverage.cms.gov";
+const CMS_API_BASE = "https://api.coverage.cms.gov/api";
 
 export interface NcdChunk {
   id: string;
@@ -10,10 +10,20 @@ export interface NcdChunk {
   ncdId: string;
 }
 
-/** Strip HTML tags */
+/** Strip HTML tags and decode common HTML entities */
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#(\d+);/g, (_match, dec) => String.fromCharCode(Number(dec)))
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /** Chunk text into ~300 token segments by paragraph */
@@ -41,7 +51,7 @@ export async function loadCmsNcds(): Promise<NcdChunk[]> {
 
   let ncdList: any[] = [];
   try {
-    const res = await axios.get(`${CMS_API_BASE}/v1/reports/national-coverage-ncd`, {
+    const res = await axios.get(`${CMS_API_BASE}/v1/ncd`, {
       timeout: 30000,
       headers: { Accept: "application/json" },
     });
@@ -67,7 +77,7 @@ export async function loadCmsNcds(): Promise<NcdChunk[]> {
         const docId = ncd.document_id;
         const ver = ncd.document_version || 1;
         const res = await axios.get(
-          `${CMS_API_BASE}/v1/data/ncd?ncdid=${docId}&ncdver=${ver}`,
+          `${CMS_API_BASE}/v1/ncd/${docId}?version=${ver}`,
           { timeout: 15000, headers: { Accept: "application/json" } }
         );
         const items = res.data?.data;
@@ -166,6 +176,14 @@ function getFallbackNcds(): NcdChunk[] {
     {
       ncdId: "310.1", title: "Routine Costs in Clinical Trials",
       text: "Medicare covers routine costs of qualifying clinical trials and reasonable and necessary items and services to diagnose and treat complications arising from trial participation. Qualifying trials include trials funded by NIH, CDC, AHRQ, CMS, DOD, or VA.",
+    },
+    {
+      ncdId: "240.2", title: "Home Use of Oxygen",
+      text: "Medicare covers home oxygen therapy for beneficiaries with significant hypoxemia. Coverage requires documented arterial blood gas (PO2 at or below 55 mmHg) or oxygen saturation at or below 88% while at rest, during sleep, or during exercise. Prior authorization is required for home oxygen equipment. A Certificate of Medical Necessity (CMN) must be completed by the treating physician. Coverage is limited to 36 months for stationary equipment after which ongoing medical necessity must be re-established. Portable oxygen is separately covered when the beneficiary is mobile.",
+    },
+    {
+      ncdId: "110.6", title: "Infusion Pumps and Chemotherapy",
+      text: "Medicare covers external infusion pumps for chemotherapy when the drug being administered is itself covered and when use of an infusion pump is medically necessary. Implantable infusion pumps are covered for intraarterial infusion of chemotherapeutic agents for primary hepatocellular carcinoma or colorectal cancer with metastases to the liver. Prior authorization may be required for non-standard chemotherapy regimens. Documentation must include the diagnosis, treatment plan, and evidence that the treatment is reasonable and necessary for the individual patient's condition.",
     },
   ];
 
