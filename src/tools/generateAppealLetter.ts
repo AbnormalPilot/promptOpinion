@@ -3,38 +3,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { IMcpTool, textResponse } from "./types";
 import { FhirClient, FhirConfig } from "../fhir/client";
 import { callLLM, safeParseJSON } from "../llm/client";
-
-const APPEAL_SYSTEM = `You are a clinical documentation specialist with expertise in prior authorization appeals for US health insurers.
-
-A prior authorization request was denied. Write a compelling appeal letter that addresses the denial reason with additional clinical justification.
-
-Return a JSON object with:
-- "letter": string (the complete appeal letter)
-- "appeal_strategy": string (brief description of the appeal approach)
-- "additional_evidence_cited": string[] (new evidence points emphasized in the appeal)
-- "denial_counterarguments": string[] (specific arguments against each denial reason)
-- "regulatory_citations": string[] (any applicable CMS rules, parity laws, or clinical guidelines cited)
-- "recommended_attachments": string[] (supporting documents that should accompany the appeal)
-- "escalation_options": string[] (next steps if appeal is denied: external review, state insurance commissioner, etc.)
-- "confidence": number (0-1)
-
-The appeal letter must include:
-1. Header: "APPEAL LETTER — DRAFT FOR PHYSICIAN REVIEW"
-2. Reference to original PA request and denial
-3. Restatement of medical necessity with stronger language
-4. Direct response to each denial reason
-5. Citations to clinical guidelines (AMA, specialty societies) supporting the treatment
-6. Emphasis on patient harm from delayed/denied treatment
-7. Request for expedited review if clinically urgent
-
-Tone: Firm, evidence-based, professional. Assert the patient's right to medically necessary treatment.
-IMPORTANT: This is a DRAFT for physician review before submission.`;
+import { APPEAL_SYSTEM } from "../llm/prompts";
 
 class GenerateAppealLetterTool implements IMcpTool {
   registerTool(server: McpServer, fhirConfig?: FhirConfig) {
     server.tool(
       "generate_appeal_letter",
-      "Generates a prior authorization appeal letter when an initial PA request was denied. Uses AI to craft counterarguments to specific denial reasons, cite clinical guidelines, and build a stronger medical necessity case.",
+      "Generates a prior authorization APPEAL letter when a PA was denied. Crafts counterarguments citing clinical guidelines (ADA, AHA, NCCN), regulatory leverage (Mental Health Parity Act, ERISA), and patient harm arguments. Includes escalation options.",
       {
         patient_id: z.string().optional().describe("FHIR Patient resource ID (auto-resolved from SHARP context if omitted)"),
         requested_medication_or_procedure: z.string().describe("The medication or procedure that was denied"),
@@ -42,8 +17,9 @@ class GenerateAppealLetterTool implements IMcpTool {
         requesting_provider: z.string().optional().describe("Name of requesting provider"),
         payer_name: z.string().optional().describe("Insurance payer name"),
         original_pa_date: z.string().optional().describe("Date the original PA was submitted"),
+        policy_context: z.string().optional().describe("CMS NCD policy text from lookup_coverage_policy (optional)"),
       },
-      async ({ patient_id, requested_medication_or_procedure, denial_reason, requesting_provider, payer_name, original_pa_date }) => {
+      async ({ patient_id, requested_medication_or_procedure, denial_reason, requesting_provider, payer_name, original_pa_date, policy_context }) => {
         const pid = patient_id || fhirConfig?.patientId;
         if (!pid) return textResponse("Error: No patient_id provided via argument or SHARP context");
         const fhir = new FhirClient(fhirConfig);
@@ -89,13 +65,17 @@ class GenerateAppealLetterTool implements IMcpTool {
           })),
         };
 
-        const userMessage = `Generate a prior authorization APPEAL letter:
+        let userMessage = `Generate a prior authorization APPEAL letter:
 - Medication/Procedure: ${requested_medication_or_procedure}
 - Denial Reason: ${denial_reason}
 - Provider: ${requesting_provider || "Not specified"}
 - Payer: ${payer_name || "Insurance Company"}
 - Original PA Date: ${original_pa_date || "Not specified"}
 - Patient data: ${JSON.stringify(patientData, null, 2)}`;
+
+        if (policy_context) {
+          userMessage += `\n\n--- RELEVANT CMS COVERAGE POLICY ---\n${policy_context}\n--- END POLICY ---\nCite this policy to support the appeal and demonstrate the denial contradicts CMS coverage criteria.`;
+        }
 
         try {
           const llmResponse = await callLLM(APPEAL_SYSTEM, userMessage);
