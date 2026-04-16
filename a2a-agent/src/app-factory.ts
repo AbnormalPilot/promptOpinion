@@ -20,26 +20,28 @@ export function createA2aApp(config: A2aAppConfig) {
     sessionService: new InMemorySessionService(),
   });
 
-  // Agent card — discovery document
+  // Agent card — A2A v1 compliant discovery document
   const agentCard = {
     name,
     description,
-    url,
     version,
     capabilities: { streaming: false, pushNotifications: false },
     skills: [
       {
         id: "prior-auth-full",
         name: "Prior Authorization Automation",
-        description: "Complete PA workflow: patient data → drug safety → coverage policy → draft letter",
-        tags: ["fhir", "healthcare", "prior-auth", "mcp"],
+        description: "Complete PA workflow: patient data → drug safety → CMS coverage policy → step therapy analysis → PA letter with ICD-10 codes and NCD citations",
+        tags: ["fhir", "healthcare", "prior-auth", "mcp", "cms-ncd"],
       },
       {
         id: "prior-auth-appeal",
         name: "Prior Authorization Appeal",
-        description: "Generate appeal letters for denied PA requests with CMS policy citations",
-        tags: ["fhir", "healthcare", "appeal"],
+        description: "Generate appeal letters for denied PA requests citing clinical guidelines, CMS policy, and regulatory leverage",
+        tags: ["fhir", "healthcare", "appeal", "clinical-guidelines"],
       },
+    ],
+    supportedInterfaces: [
+      { protocol: "a2a", url: url },
     ],
     ...(fhirExtensionUri ? { extensions: [fhirExtensionUri] } : {}),
   };
