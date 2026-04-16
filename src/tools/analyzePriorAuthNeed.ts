@@ -17,69 +17,69 @@ class AnalyzePriorAuthNeedTool implements IMcpTool {
         policy_context: z.string().optional().describe("CMS NCD policy text from lookup_coverage_policy (optional, improves accuracy)"),
       },
       async ({ patient_id, requested_medication_or_procedure, requesting_provider, policy_context }) => {
-        const pid = patient_id || fhirConfig?.patientId;
-        if (!pid) return textResponse("Error: No patient_id provided via argument or SHARP context");
-        const fhir = new FhirClient(fhirConfig);
+        try {
+          const pid = patient_id || fhirConfig?.patientId;
+          if (!pid) return textResponse("Error: No patient_id provided via argument or SHARP context");
+          const fhir = new FhirClient(fhirConfig);
 
-        // Fetch ALL data including full med history + allergies (parallel)
-        const [patient, conditions, allMedications, allergies, observations] = await Promise.all([
-          fhir.read(`Patient/${pid}`),
-          fhir.search("Condition", { patient: pid, "clinical-status": "active" }),
-          fhir.search("MedicationRequest", { patient: pid }), // ALL meds, not just active
-          fhir.search("AllergyIntolerance", { patient: pid }),
-          fhir.search("Observation", { patient: pid, _sort: "-date", _count: "20" }),
-        ]);
+          // Fetch ALL data including full med history + allergies (parallel)
+          const [patient, conditions, allMedications, allergies, observations] = await Promise.all([
+            fhir.read(`Patient/${pid}`),
+            fhir.search("Condition", { patient: pid, "clinical-status": "active" }),
+            fhir.search("MedicationRequest", { patient: pid }), // ALL meds, not just active
+            fhir.search("AllergyIntolerance", { patient: pid }),
+            fhir.search("Observation", { patient: pid, _sort: "-date", _count: "20" }),
+          ]);
 
-        if (!patient) return textResponse(`Patient ${pid} not found`);
+          if (!patient) return textResponse(`Patient ${pid} not found`);
 
-        const patientData = {
-          patient: {
-            id: patient.id,
-            name: formatName(patient.name),
-            birthDate: patient.birthDate,
-            gender: patient.gender,
-            age: calculateAge(patient.birthDate),
-          },
-          activeConditions: conditions.map((c: any) => ({
-            code: c.code?.coding?.[0]?.code,
-            system: c.code?.coding?.[0]?.system,
-            display: c.code?.coding?.[0]?.display || c.code?.text,
-            onsetDate: c.onsetDateTime,
-          })),
-          medicationHistory: allMedications.map((m: any) => ({
-            medication: m.medicationCodeableConcept?.coding?.[0]?.display || m.medicationCodeableConcept?.text || "Unknown",
-            code: m.medicationCodeableConcept?.coding?.[0]?.code,
-            status: m.status, // active, completed, stopped, cancelled
-            authoredOn: m.authoredOn,
-            reasonCode: m.reasonCode?.[0]?.coding?.[0]?.display || null,
-          })),
-          allergies: allergies.map((a: any) => ({
-            substance: a.code?.coding?.[0]?.display || a.code?.text || "Unknown",
-            type: a.type,
-            criticality: a.criticality,
-          })),
-          recentObservations: observations.slice(0, 15).map((o: any) => ({
-            code: o.code?.coding?.[0]?.display || o.code?.text,
-            value: o.valueQuantity ? `${o.valueQuantity.value} ${o.valueQuantity.unit || ""}` : o.valueString || null,
-            date: o.effectiveDateTime,
-          })),
-        };
+          const patientData = {
+            patient: {
+              id: patient.id,
+              name: formatName(patient.name),
+              birthDate: patient.birthDate || null,
+              gender: patient.gender || null,
+              age: calculateAge(patient.birthDate),
+            },
+            activeConditions: conditions.map((c: any) => ({
+              code: c.code?.coding?.[0]?.code || null,
+              system: c.code?.coding?.[0]?.system || null,
+              display: c.code?.coding?.[0]?.display || c.code?.text || "Unknown",
+              onsetDate: c.onsetDateTime || null,
+            })),
+            medicationHistory: allMedications.map((m: any) => ({
+              medication: m.medicationCodeableConcept?.coding?.[0]?.display || m.medicationCodeableConcept?.text || "Unknown",
+              code: m.medicationCodeableConcept?.coding?.[0]?.code || null,
+              status: m.status || null, // active, completed, stopped, cancelled
+              authoredOn: m.authoredOn || null,
+              reasonCode: m.reasonCode?.[0]?.coding?.[0]?.display || null,
+            })),
+            allergies: allergies.map((a: any) => ({
+              substance: a.code?.coding?.[0]?.display || a.code?.text || "Unknown",
+              type: a.type || null,
+              criticality: a.criticality || null,
+            })),
+            recentObservations: observations.slice(0, 15).map((o: any) => ({
+              code: o.code?.coding?.[0]?.display || o.code?.text || "Unknown",
+              value: o.valueQuantity ? `${o.valueQuantity.value} ${o.valueQuantity.unit || ""}`.trim() : o.valueString || null,
+              date: o.effectiveDateTime || null,
+            })),
+          };
 
-        let userMessage = `Analyze prior authorization need for:
+          let userMessage = `Analyze prior authorization need for:
 - Requested: ${requested_medication_or_procedure}
 - Provider: ${requesting_provider || "Not specified"}
 - Patient data: ${JSON.stringify(patientData, null, 2)}`;
 
-        if (policy_context) {
-          userMessage += `\n\n--- RELEVANT CMS COVERAGE POLICY ---\n${policy_context}\n--- END POLICY ---\nCite specific NCD section numbers in your analysis where applicable.`;
-        }
+          if (policy_context) {
+            userMessage += `\n\n--- RELEVANT CMS COVERAGE POLICY ---\n${policy_context}\n--- END POLICY ---\nCite specific NCD section numbers in your analysis where applicable.`;
+          }
 
-        try {
           const llmResponse = await callLLM(ANALYZE_PRIOR_AUTH_SYSTEM, userMessage);
           const analysis = safeParseJSON(llmResponse, { error: "Failed to parse LLM response", raw: llmResponse });
           return textResponse(JSON.stringify(analysis, null, 2));
         } catch (err: any) {
-          return textResponse(`LLM Error: ${err.message}`);
+          return textResponse(`Error: ${err.message}`);
         }
       }
     );
