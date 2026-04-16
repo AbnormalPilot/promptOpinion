@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* Wise-inspired color palette */
+  --color-wise-green: #9fe870;
+  --color-wise-dark-green: #163300;
+  --color-wise-pastel-green: #cdffad;
+  --color-wise-mint: #e2f6d5;
+  --color-wise-black: #0e0f0c;
+  --color-wise-dark: #454745;
+  --color-wise-gray: #868685;
+  --color-wise-light: #e8ebe6;
+  --color-wise-danger: #d03238;
+  --color-wise-warning: #ffd11a;
+  --color-wise-positive: #054d28;
+
+  --font-sans: "Inter", "Helvetica", "Arial", sans-serif;
+}
+
+/* Base styles */
+body {
+  background: #ffffff;
+  color: #0e0f0c;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-feature-settings: "calt";
+  letter-spacing: -0.01em;
+}
+
+/* Wise-style display headings */
+.wise-display {
+  font-weight: 900;
+  line-height: 0.85;
+  letter-spacing: normal;
+  font-feature-settings: "calt";
+  color: #0e0f0c;
+}
+
+/* Wise-style button hover/active */
+.wise-btn {
+  transition: transform 0.15s ease;
+}
+.wise-btn:hover {
+  transform: scale(1.05);
+}
+.wise-btn:active {
+  transform: scale(0.95);
+}
+
+/* Ring shadow for cards (Wise style - no drop shadows) */
+.wise-card {
+  box-shadow: rgba(14, 15, 12, 0.12) 0px 0px 0px 1px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e8ebe6;
+  border-radius: 9999px;
+}
