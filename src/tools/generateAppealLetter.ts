@@ -20,52 +20,53 @@ class GenerateAppealLetterTool implements IMcpTool {
         policy_context: z.string().optional().describe("CMS NCD policy text from lookup_coverage_policy (optional)"),
       },
       async ({ patient_id, requested_medication_or_procedure, denial_reason, requesting_provider, payer_name, original_pa_date, policy_context }) => {
-        const pid = patient_id || fhirConfig?.patientId;
-        if (!pid) return textResponse("Error: No patient_id provided via argument or SHARP context");
-        const fhir = new FhirClient(fhirConfig);
+        try {
+          const pid = patient_id || fhirConfig?.patientId;
+          if (!pid) return textResponse("Error: No patient_id provided via argument or SHARP context");
+          const fhir = new FhirClient(fhirConfig);
 
-        const [patient, conditions, medications, observations, allergies] = await Promise.all([
-          fhir.read(`Patient/${pid}`),
-          fhir.search("Condition", { patient: pid }),
-          fhir.search("MedicationRequest", { patient: pid }),
-          fhir.search("Observation", { patient: pid, _sort: "-date", _count: "20" }),
-          fhir.search("AllergyIntolerance", { patient: pid }),
-        ]);
+          const [patient, conditions, medications, observations, allergies] = await Promise.all([
+            fhir.read(`Patient/${pid}`),
+            fhir.search("Condition", { patient: pid }),
+            fhir.search("MedicationRequest", { patient: pid }),
+            fhir.search("Observation", { patient: pid, _sort: "-date", _count: "20" }),
+            fhir.search("AllergyIntolerance", { patient: pid }),
+          ]);
 
-        if (!patient) return textResponse(`Patient ${pid} not found`);
+          if (!patient) return textResponse(`Patient ${pid} not found`);
 
-        const patientData = {
-          patient: {
-            name: formatName(patient.name),
-            birthDate: patient.birthDate,
-            gender: patient.gender,
-            identifier: patient.identifier?.map((i: any) => ({ system: i.system, value: i.value })),
-          },
-          conditions: conditions.map((c: any) => ({
-            display: c.code?.coding?.[0]?.display || c.code?.text,
-            code: c.code?.coding?.[0]?.code,
-            system: c.code?.coding?.[0]?.system,
-            clinicalStatus: c.clinicalStatus?.coding?.[0]?.code,
-            onsetDate: c.onsetDateTime,
-          })),
-          allMedications: medications.map((m: any) => ({
-            medication: m.medicationCodeableConcept?.coding?.[0]?.display || m.medicationCodeableConcept?.text || "Unknown",
-            status: m.status,
-            authoredOn: m.authoredOn,
-          })),
-          observations: observations.map((o: any) => ({
-            code: o.code?.coding?.[0]?.display || o.code?.text,
-            value: o.valueQuantity ? `${o.valueQuantity.value} ${o.valueQuantity.unit || ""}` : o.valueString || null,
-            date: o.effectiveDateTime,
-          })),
-          allergies: allergies.map((a: any) => ({
-            substance: a.code?.coding?.[0]?.display || a.code?.text || "Unknown",
-            type: a.type,
-            criticality: a.criticality,
-          })),
-        };
+          const patientData = {
+            patient: {
+              name: formatName(patient.name),
+              birthDate: patient.birthDate || null,
+              gender: patient.gender || null,
+              identifier: patient.identifier?.map((i: any) => ({ system: i.system, value: i.value })) || [],
+            },
+            conditions: conditions.map((c: any) => ({
+              display: c.code?.coding?.[0]?.display || c.code?.text || "Unknown",
+              code: c.code?.coding?.[0]?.code || null,
+              system: c.code?.coding?.[0]?.system || null,
+              clinicalStatus: c.clinicalStatus?.coding?.[0]?.code || null,
+              onsetDate: c.onsetDateTime || null,
+            })),
+            allMedications: medications.map((m: any) => ({
+              medication: m.medicationCodeableConcept?.coding?.[0]?.display || m.medicationCodeableConcept?.text || "Unknown",
+              status: m.status || null,
+              authoredOn: m.authoredOn || null,
+            })),
+            observations: observations.map((o: any) => ({
+              code: o.code?.coding?.[0]?.display || o.code?.text || "Unknown",
+              value: o.valueQuantity ? `${o.valueQuantity.value} ${o.valueQuantity.unit || ""}`.trim() : o.valueString || null,
+              date: o.effectiveDateTime || null,
+            })),
+            allergies: allergies.map((a: any) => ({
+              substance: a.code?.coding?.[0]?.display || a.code?.text || "Unknown",
+              type: a.type || null,
+              criticality: a.criticality || null,
+            })),
+          };
 
-        let userMessage = `Generate a prior authorization APPEAL letter:
+          let userMessage = `Generate a prior authorization APPEAL letter:
 - Medication/Procedure: ${requested_medication_or_procedure}
 - Denial Reason: ${denial_reason}
 - Provider: ${requesting_provider || "Not specified"}
@@ -73,16 +74,15 @@ class GenerateAppealLetterTool implements IMcpTool {
 - Original PA Date: ${original_pa_date || "Not specified"}
 - Patient data: ${JSON.stringify(patientData, null, 2)}`;
 
-        if (policy_context) {
-          userMessage += `\n\n--- RELEVANT CMS COVERAGE POLICY ---\n${policy_context}\n--- END POLICY ---\nCite this policy to support the appeal and demonstrate the denial contradicts CMS coverage criteria.`;
-        }
+          if (policy_context) {
+            userMessage += `\n\n--- RELEVANT CMS COVERAGE POLICY ---\n${policy_context}\n--- END POLICY ---\nCite this policy to support the appeal and demonstrate the denial contradicts CMS coverage criteria.`;
+          }
 
-        try {
           const llmResponse = await callLLM(APPEAL_SYSTEM, userMessage);
           const result = safeParseJSON(llmResponse, { error: "Failed to generate appeal", raw: llmResponse });
           return textResponse(JSON.stringify(result, null, 2));
         } catch (err: any) {
-          return textResponse(`LLM Error: ${err.message}`);
+          return textResponse(`Error: ${err.message}`);
         }
       }
     );
