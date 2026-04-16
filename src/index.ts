@@ -38,13 +38,16 @@ app.post("/mcp", async (req, res) => {
           experimental: {
             [FHIR_CONTEXT_EXTENSION]: {
               scopes: [
-                { name: "patient/Patient.read", required: true },
-                { name: "patient/Condition.read" },
-                { name: "patient/MedicationRequest.read" },
-                { name: "patient/Observation.read" },
-                { name: "patient/Encounter.read" },
+                { name: "patient/Patient.rs", required: true },
+                { name: "patient/Condition.rs" },
+                { name: "patient/MedicationRequest.rs" },
+                { name: "patient/Observation.rs" },
+                { name: "patient/Encounter.rs" },
+                { name: "patient/AllergyIntolerance.rs" },
+                { name: "patient/Procedure.rs" },
+                { name: "patient/DiagnosticReport.rs" },
+                { name: "patient/DocumentReference.rs" },
               ],
-              version: "1.0",
             },
           },
         },
