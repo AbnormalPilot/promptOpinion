@@ -1,77 +1,93 @@
-# ClinicalContext MCP Server
+# ClinicalContext — Prior Authorization Automation
 
-## What This Is
-MCP server for healthcare prior authorization automation. Fetches patient data from FHIR R4, reasons over it with Gemini LLM, generates prior auth request drafts.
+## Architecture
 
-Built for the "Agents Assemble" healthcare AI hackathon on Prompt Opinion platform.
+3-service system for the "Agents Assemble" healthcare AI hackathon:
+
+```
+┌─────────────────────────────────────────────────┐
+│           A2A Agent (port 8001)                 │
+│  Google ADK + Gemini 2.5 Flash                  │
+│  Natural language → auto-chains 11 MCP tools    │
+└──────────────────┬──────────────────────────────┘
+                   │ MCP protocol + SHARP headers
+                   ▼
+┌─────────────────────────────────────────────────┐
+│         MCP Server (port 3000) — 11 tools       │
+│  FHIR: patient, meds, history                   │
+│  LLM: analyze, draft, appeal, coverage          │
+│  RAG: coverage policy lookup                    │
+│  API: drug interactions (RxNorm)                │
+│  OCR: scanned documents (tesseract.js)          │
+└──────────────────┬──────────────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────────┐
+│       RAG Service (port 3001)                   │
+│  244 CMS NCD policy chunks                      │
+│  vectra + xenova/transformers embeddings        │
+└─────────────────────────────────────────────────┘
+```
 
 ## Tech Stack
-- TypeScript + Node.js 20+
-- `@modelcontextprotocol/sdk` — MCP protocol
-- `axios` — FHIR R4 HTTP client
-- `@google/generative-ai` — Gemini 2.0 Flash (free tier)
-- `express` — HTTP transport for Prompt Opinion
-- `zod` — schema validation
-- `jose` — JWT decoding for SHARP context
+- **MCP Server**: TypeScript, @modelcontextprotocol/sdk, Express 5, Groq (llama-3.3-70b)
+- **RAG Service**: vectra, @xenova/transformers (local embeddings, no API key)
+- **A2A Agent**: @google/adk, @a2a-js/sdk, Gemini 2.5 Flash
+- **FHIR**: axios client, HAPI R4 public server
+- **OCR**: tesseract.js
+- **Drug Safety**: RxNorm REST API (free, no key)
 
-## Project Structure
-```
-src/
-├── index.ts          # HTTP server (Express + StreamableHTTP transport)
-├── stdio.ts          # Stdio server (local testing, MCP Inspector)
-├── fhir/client.ts    # FHIR R4 HTTP client
-├── llm/client.ts     # Gemini API client
-├── llm/prompts.ts    # System prompts for analysis + letter drafting
-├── sharp/
-│   ├── constants.ts  # SHARP header names
-│   └── context.ts    # Extract FHIR context from HTTP headers
-└── tools/
-    ├── types.ts                  # IMcpTool interface
-    ├── index.ts                  # Barrel export
-    ├── fetchPatientContext.ts    # Patient demographics + conditions
-    ├── fetchMedicationList.ts    # Active medications
-    ├── fetchClinicalHistory.ts   # Encounters + observations
-    ├── analyzePriorAuthNeed.ts   # LLM: clinical justification analysis
-    └── draftPriorAuthRequest.ts  # LLM: full prior auth letter
-```
+## 11 MCP Tools
 
-## Running Locally
+| # | Tool | Type | Purpose |
+|---|------|------|---------|
+| 1 | fetch_patient_context | FHIR | Demographics + conditions + allergies + procedures |
+| 2 | fetch_medication_list | FHIR | Full medication history for step therapy |
+| 3 | fetch_clinical_history | FHIR | Encounters + labs + vitals |
+| 4 | extract_clinical_evidence | FHIR+LLM | Unstructured note evidence extraction |
+| 5 | process_clinical_document | FHIR+OCR | OCR scanned documents |
+| 6 | lookup_coverage_policy | RAG | CMS NCD policy text retrieval |
+| 7 | check_coverage_requirements | LLM | Step therapy + formulary analysis |
+| 8 | check_drug_interactions | API | RxNorm drug interaction check |
+| 9 | analyze_prior_auth_need | LLM+RAG | Clinical justification with ICD-10 mapping |
+| 10 | draft_prior_auth_request | LLM+RAG | Complete PA letter |
+| 11 | generate_appeal_letter | LLM+RAG | Appeal for denied PA |
+
+## Running
+
 ```bash
-npm install
-cp .env.example .env  # Add your GEMINI_API_KEY
+# MCP Server (local)
+npm install && npm run start
 
-# Stdio mode (local testing)
-npm run start:stdio
+# RAG Service
+cd rag-service && npm install && npm run start
 
-# HTTP mode (for Prompt Opinion)
-npm run start
+# A2A Agent
+cd a2a-agent && npm install && npm run start
+
+# All via Docker
+docker compose up --build
 
 # MCP Inspector
 npm run inspect
 
-# Run test client
-npx tsx test-client.ts [patient_id]
+# Test client
+npx tsx test-client.ts 131926799
 ```
 
-## Key Design Decisions
-- **Stateless HTTP transport** — fresh McpServer per request, matches po-community-mcp pattern
-- **Tools don't depend on Express** — accept FhirConfig optionally, work in both stdio and HTTP mode
-- **SHARP context is additive** — tools work without it (direct patient_id arg), SHARP headers override in HTTP mode
-- **Default FHIR server** — hapi.fhir.org/baseR4 (public, no auth, synthetic data)
-
-## FHIR Test Data
-- Public server: https://hapi.fhir.org/baseR4
-- Known test patient with conditions: `98067569` (Roscoe Arbuckle, osteoarthritis)
-- Find more: `curl "https://hapi.fhir.org/baseR4/Condition?_count=5&clinical-status=active&_include=Condition:patient"`
+## Key Patients for Testing
+- `131926799` — Robert Barker: Type 2 DM, HTN, metformin, amlodipine, HbA1c 8.2%
+- `98067569` — Roscoe Arbuckle: Osteoarthritis, knee pain
 
 ## SHARP-on-MCP Headers
-When running in HTTP mode behind Prompt Opinion:
 - `x-fhir-server-url` — FHIR base URL
-- `x-fhir-access-token` — Bearer token (patient ID extracted from JWT `patient` claim)
-- `x-patient-id` — Fallback patient ID header
+- `x-fhir-access-token` — Bearer token (patient from JWT claim)
+- `x-patient-id` — Fallback patient ID
 
-## Commands
-- `npm run start` — HTTP server on port 3000
-- `npm run start:stdio` — Stdio server
-- `npm run inspect` — MCP Inspector
-- `npm run build` — TypeScript compile to dist/
+## Environment Variables
+```
+GROQ_API_KEY        — MCP server LLM (required)
+FHIR_BASE_URL       — Default: https://hapi.fhir.org/baseR4
+RAG_SERVICE_URL     — Default: http://localhost:3001
+GOOGLE_API_KEY      — A2A agent Gemini (for A2A only)
+```
