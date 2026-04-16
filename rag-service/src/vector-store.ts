@@ -1,5 +1,6 @@
 import { LocalIndex } from "vectra";
 import path from "path";
+import fs from "fs";
 import { embedText, embedBatch } from "./embeddings";
 import { NcdChunk } from "./cms-loader";
 
@@ -10,7 +11,18 @@ let index: LocalIndex | null = null;
 async function getIndex(): Promise<LocalIndex> {
   if (!index) {
     index = new LocalIndex(INDEX_PATH);
-    if (!(await index.isIndexCreated())) {
+    try {
+      if (!(await index.isIndexCreated())) {
+        await index.createIndex();
+      }
+    } catch (err: any) {
+      // Index files may be corrupted — delete and recreate
+      console.warn(`Index appears corrupted (${err.message}), deleting and recreating...`);
+      index = null;
+      if (fs.existsSync(INDEX_PATH)) {
+        fs.rmSync(INDEX_PATH, { recursive: true, force: true });
+      }
+      index = new LocalIndex(INDEX_PATH);
       await index.createIndex();
     }
   }
@@ -28,15 +40,21 @@ export interface IndexedChunk {
 
 /** Build the vector index from NCD chunks */
 export async function buildIndex(chunks: NcdChunk[]): Promise<number> {
-  const idx = await getIndex();
+  let idx = await getIndex();
 
-  // Delete existing items if rebuilding
+  // Delete existing index directory and recreate when rebuilding
   const stats = await idx.getIndexStats();
   if (stats.items > 0) {
     console.log(`Index exists with ${stats.items} items — rebuilding`);
-    // Recreate index
+    // Must delete the directory before createIndex() or Vectra will error on existing files
+    index = null;
+    if (fs.existsSync(INDEX_PATH)) {
+      fs.rmSync(INDEX_PATH, { recursive: true, force: true });
+    }
     index = new LocalIndex(INDEX_PATH);
     await index.createIndex();
+    // Refresh local ref to point at the new index instance
+    idx = index;
   }
 
   console.log(`Embedding ${chunks.length} chunks...`);
