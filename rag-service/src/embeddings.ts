@@ -1,42 +1,39 @@
-import OpenAI from "openai";
+let pipeline: any = null;
 
-let client: OpenAI | null = null;
-
-function getClient(): OpenAI {
-  if (!client) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error("OPENAI_API_KEY not set");
-    client = new OpenAI({ apiKey });
+async function getEmbeddingPipeline() {
+  if (!pipeline) {
+    // Dynamic import for ESM compatibility
+    const { pipeline: createPipeline } = await import("@xenova/transformers");
+    console.log("Loading embedding model (first time may download ~30MB)...");
+    pipeline = await createPipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
+    console.log("Embedding model loaded");
   }
-  return client;
+  return pipeline;
 }
 
-/** Embed a single text string */
+/** Embed a single text string — returns float array */
 export async function embedText(text: string): Promise<number[]> {
-  const res = await getClient().embeddings.create({
-    model: "text-embedding-3-small",
-    input: text,
-  });
-  return res.data[0].embedding;
+  const pipe = await getEmbeddingPipeline();
+  const output = await pipe(text, { pooling: "mean", normalize: true });
+  return Array.from(output.data as Float32Array);
 }
 
 /** Embed multiple texts in batch */
 export async function embedBatch(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return [];
 
-  // OpenAI allows up to 2048 inputs per batch
-  const batchSize = 100;
-  const allEmbeddings: number[][] = [];
+  const pipe = await getEmbeddingPipeline();
+  const results: number[][] = [];
 
-  for (let i = 0; i < texts.length; i += batchSize) {
-    const batch = texts.slice(i, i + batchSize);
-    const res = await getClient().embeddings.create({
-      model: "text-embedding-3-small",
-      input: batch,
-    });
-    allEmbeddings.push(...res.data.map((d) => d.embedding));
-    console.log(`Embedded ${Math.min(i + batchSize, texts.length)}/${texts.length} chunks`);
+  // Process one at a time to avoid memory issues
+  for (let i = 0; i < texts.length; i++) {
+    const output = await pipe(texts[i], { pooling: "mean", normalize: true });
+    results.push(Array.from(output.data as Float32Array));
+
+    if ((i + 1) % 10 === 0 || i === texts.length - 1) {
+      console.log(`Embedded ${i + 1}/${texts.length} chunks`);
+    }
   }
 
-  return allEmbeddings;
+  return results;
 }
