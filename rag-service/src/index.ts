@@ -10,14 +10,20 @@ app.use(cors());
 app.use(express.json());
 
 let ready = false;
+let startupError: string | null = null;
+const startedAt = new Date().toISOString();
 
 // Health check
 app.get("/health", async (_req, res) => {
   const stats = await getIndexStats();
   res.json({
-    status: ready ? "ok" : "building",
+    status: ready ? "ok" : startupError ? "error" : "building",
     service: "clinicalcontext-rag",
     indexed_chunks: stats.items,
+    port: PORT,
+    started_at: startedAt,
+    uptime_seconds: Math.floor(process.uptime()),
+    ...(startupError ? { startup_error: startupError } : {}),
   });
 });
 
@@ -29,15 +35,31 @@ app.post("/query", async (req, res) => {
   }
 
   const { query, topK } = req.body;
-  if (!query) {
-    res.status(400).json({ error: "Missing query field" });
+
+  // Input validation
+  if (query === undefined || query === null) {
+    res.status(400).json({ error: "Missing required field: query" });
     return;
+  }
+  if (typeof query !== "string") {
+    res.status(400).json({ error: "Field 'query' must be a string" });
+    return;
+  }
+  if (query.trim().length === 0) {
+    res.status(400).json({ error: "Field 'query' must not be empty" });
+    return;
+  }
+  if (topK !== undefined) {
+    if (typeof topK !== "number" || !Number.isInteger(topK) || topK < 1 || topK > 20) {
+      res.status(400).json({ error: "Field 'topK' must be an integer between 1 and 20" });
+      return;
+    }
   }
 
   try {
-    const results = await queryIndex(query, topK || 5);
+    const results = await queryIndex(query.trim(), topK ?? 5);
     res.json({
-      query,
+      query: query.trim(),
       results: results.map((r) => ({
         ncdId: r.ncdId,
         title: r.title,
@@ -66,15 +88,21 @@ async function startup() {
       return;
     }
 
+    // loadCmsNcds already falls back to local data if CMS API is down,
+    // so the service will always start even when the API is unavailable.
     const chunks = await loadCmsNcds();
-    if (chunks.length > 0) {
-      await buildIndex(chunks);
+    if (chunks.length === 0) {
+      throw new Error("No NCD chunks available — neither from CMS API nor fallback dataset");
     }
+
+    await buildIndex(chunks);
     ready = true;
     console.log("RAG service ready");
   } catch (err: any) {
+    startupError = err.message;
     console.error("Failed to build index:", err.message);
-    // Still serve — will return 503 on /query until index is built
+    // Server continues running — /health will surface the error,
+    // /query returns 503 until a successful build completes.
   }
 }
 
