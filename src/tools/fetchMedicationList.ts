@@ -13,31 +13,35 @@ class FetchMedicationListTool implements IMcpTool {
         status: z.enum(["active", "completed", "all"]).default("active").describe("Medication status filter"),
       },
       async ({ patient_id, status }) => {
-        const pid = patient_id || fhirConfig?.patientId;
-        if (!pid) return textResponse("Error: No patient_id provided via argument or SHARP context");
-        const fhir = new FhirClient(fhirConfig);
+        try {
+          const pid = patient_id || fhirConfig?.patientId;
+          if (!pid) return textResponse("Error: No patient_id provided via argument or SHARP context");
+          const fhir = new FhirClient(fhirConfig);
 
-        const params: Record<string, string> = { patient: pid };
-        if (status !== "all") params.status = status;
+          const params: Record<string, string> = { patient: pid };
+          if (status !== "all") params.status = status;
 
-        const medications = await fhir.search("MedicationRequest", params);
+          const medications = await fhir.search("MedicationRequest", params);
 
-        const result = medications.map((m: any) => ({
-          medication: m.medicationCodeableConcept?.coding?.[0]?.display
-            || m.medicationCodeableConcept?.text
-            || m.medicationReference?.display
-            || "Unknown medication",
-          code: m.medicationCodeableConcept?.coding?.[0]?.code || null,
-          status: m.status,
-          intent: m.intent,
-          authoredOn: m.authoredOn || null,
-          dosageInstruction: m.dosageInstruction?.[0]?.text
-            || m.dosageInstruction?.[0]?.patientInstruction
-            || null,
-          requester: m.requester?.display || null,
-        }));
+          const result = medications.map((m: any) => ({
+            medication: m.medicationCodeableConcept?.coding?.[0]?.display
+              || m.medicationCodeableConcept?.text
+              || m.medicationReference?.display
+              || "Unknown medication",
+            code: m.medicationCodeableConcept?.coding?.[0]?.code || null,
+            status: m.status || null,
+            intent: m.intent || null,
+            authoredOn: m.authoredOn || null,
+            dosageInstruction: m.dosageInstruction?.[0]?.text
+              || m.dosageInstruction?.[0]?.patientInstruction
+              || null,
+            requester: m.requester?.display || null,
+          }));
 
-        return textResponse(JSON.stringify({ patientId: pid, medications: result }, null, 2));
+          return textResponse(JSON.stringify({ patientId: pid, medications: result }, null, 2));
+        } catch (err: any) {
+          return textResponse(`Error: ${err.message}`);
+        }
       }
     );
   }
