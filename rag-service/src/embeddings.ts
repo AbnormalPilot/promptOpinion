@@ -1,11 +1,28 @@
 let pipeline: any = null;
+// Correct model name on Hugging Face Hub for Xenova's ONNX port of all-MiniLM-L6-v2
+const MODEL_NAME = "Xenova/all-MiniLM-L6-v2";
 
 async function getEmbeddingPipeline() {
   if (!pipeline) {
-    // Dynamic import for ESM compatibility
-    const { pipeline: createPipeline } = await import("@xenova/transformers");
-    console.log("Loading embedding model (first time may download ~30MB)...");
-    pipeline = await createPipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
+    let createPipeline: any;
+    try {
+      // Dynamic import for ESM compatibility
+      const mod = await import("@xenova/transformers");
+      createPipeline = mod.pipeline;
+    } catch (err: any) {
+      throw new Error(`Failed to import @xenova/transformers: ${err.message}`);
+    }
+
+    console.log(`Loading embedding model ${MODEL_NAME} (first time may download ~30MB)...`);
+    try {
+      pipeline = await createPipeline("feature-extraction", MODEL_NAME);
+    } catch (err: any) {
+      throw new Error(
+        `Failed to load embedding model "${MODEL_NAME}". ` +
+        `Ensure network access is available for the initial download, ` +
+        `or pre-cache the model. Original error: ${err.message}`
+      );
+    }
     console.log("Embedding model loaded");
   }
   return pipeline;
