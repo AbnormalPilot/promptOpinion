@@ -7,7 +7,7 @@ class FetchClinicalHistoryTool implements IMcpTool {
   registerTool(server: McpServer, fhirConfig?: FhirConfig) {
     server.tool(
       "fetch_clinical_history",
-      "Fetches recent encounters and observations for prior auth clinical justification",
+      "Fetches recent encounters, lab results, and vital signs from FHIR R4. Provides the clinical evidence trail needed to demonstrate medical necessity in a prior authorization request.",
       {
         patient_id: z.string().optional().describe("FHIR Patient resource ID (auto-resolved from SHARP context if omitted)"),
         lookback_days: z.number().default(180).describe("How many days of history to fetch"),

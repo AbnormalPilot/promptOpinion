@@ -7,7 +7,7 @@ class FetchMedicationListTool implements IMcpTool {
   registerTool(server: McpServer, fhirConfig?: FhirConfig) {
     server.tool(
       "fetch_medication_list",
-      "Fetches current medications for a patient from FHIR R4",
+      "Fetches the patient's medication history from FHIR R4 including active, completed, and stopped medications. Essential for documenting step therapy compliance in prior authorization requests.",
       {
         patient_id: z.string().optional().describe("FHIR Patient resource ID (auto-resolved from SHARP context if omitted)"),
         status: z.enum(["active", "completed", "all"]).default("active").describe("Medication status filter"),
