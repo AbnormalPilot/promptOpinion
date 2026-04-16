@@ -6,3 +6,4 @@ export { checkCoverageRequirements } from "./checkCoverageRequirements";
 export { analyzePriorAuthNeed } from "./analyzePriorAuthNeed";
 export { draftPriorAuthRequest } from "./draftPriorAuthRequest";
 export { generateAppealLetter } from "./generateAppealLetter";
+export { checkDrugInteractions } from "./checkDrugInteractions";
