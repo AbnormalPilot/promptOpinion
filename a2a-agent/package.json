@@ -1,0 +1,29 @@
+{
+  "name": "clinicalcontext-a2a-agent",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A2A agent that orchestrates ClinicalContext MCP tools for prior authorization",
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts"
+  },
+  "dependencies": {
+    "@a2a-js/sdk": "^0.3.10",
+    "@google/adk": "^0.3.0",
+    "@modelcontextprotocol/sdk": "^1.25.1",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.0",
+    "tsx": "^4.19.4",
+    "uuid": "^11.1.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
