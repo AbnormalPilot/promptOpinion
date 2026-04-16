@@ -1,4 +1,21 @@
 services:
+  rag-service:
+    build: ./rag-service
+    ports:
+      - "3001:3001"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - RAG_PORT=3001
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
   mcp-server:
     build: .
     ports:
@@ -6,12 +23,36 @@ services:
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY}
       - FHIR_BASE_URL=${FHIR_BASE_URL:-https://hapi.fhir.org/baseR4}
+      - RAG_SERVICE_URL=http://rag-service:3001
       - PORT=3000
     env_file:
       - .env
+    depends_on:
+      rag-service:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 5
+
+  a2a-agent:
+    build: ./a2a-agent
+    ports:
+      - "8001:8001"
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - MCP_SERVER_URL=http://mcp-server:3000
+      - A2A_PORT=8001
+    env_file:
+      - .env
+    depends_on:
+      mcp-server:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
