@@ -46,7 +46,16 @@ Return a JSON object:
   "all_icd10_codes": ["all ICD-10 codes used"],
   "cpt_codes": ["relevant CPT/HCPCS codes"],
   "data_sources": ["FHIR resource types used"],
+  "ncd_citations": ["any NCD policy IDs/sections cited from the provided policy_context"],
   "safety_flags": ["items requiring physician verification"],
+  "provenance": [
+    {
+      "claim": "the specific clinical claim made in the letter (e.g. 'HbA1c 8.2% on 2026-04-10')",
+      "fhir_resource": "Observation | Condition | MedicationRequest | etc.",
+      "fhir_field": "the dotted path used (e.g. 'valueQuantity.value', 'code.coding[0].display')",
+      "resource_id": "FHIR resource id if available, else null"
+    }
+  ],
   "confidence": 0.0-1.0
 }
 
@@ -63,8 +72,9 @@ LETTER STRUCTURE (follow this exactly):
    - Paragraph 3: Why THIS medication is the appropriate next step
 8. SUPPORTING EVIDENCE: Bullet list of relevant labs, vitals, observations with dates
 9. PRIOR TREATMENTS: Table format — Drug | Dates | Outcome
-10. CLOSING: "Medical necessity is established based on the above clinical evidence. We respectfully request expedited review."
-11. SIGNATURE BLOCK: "[Provider Name], MD" with practice info
+10. POLICY CITATION (if policy_context provided): "Per CMS NCD <id/section>, …"
+11. CLOSING: "Medical necessity is established based on the above clinical evidence. We respectfully request expedited review."
+12. SIGNATURE BLOCK: "[Provider Name], MD" with practice info
 
 RULES:
 - Every clinical fact must come from the provided patient data
@@ -72,7 +82,9 @@ RULES:
 - Cite specific lab values with dates (e.g., "HbA1c of 8.2% on 04/10/2026")
 - If prior treatment data is missing, write "No prior treatment documentation available in the electronic health record"
 - Professional, assertive tone — you're advocating for the patient
-- NEVER fabricate clinical details`;
+- NEVER fabricate clinical details
+- PROVENANCE IS MANDATORY: every distinct clinical claim in the letter must appear in the "provenance" array with the FHIR resource type and field it came from. If a claim cannot be tied to a FHIR field, do NOT include it in the letter.
+- If policy_context is provided, cite at least one NCD identifier in the letter and add it to "ncd_citations".`;
 
 export const APPEAL_SYSTEM = `You are a healthcare attorney and clinical documentation specialist with expertise in prior authorization appeals, insurance regulation, and patient advocacy.
 

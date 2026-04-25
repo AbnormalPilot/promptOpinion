@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 920" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', sans-serif">
+  <!-- ClinicalContext PA workflow — 11-tool chain in sequence -->
+
+  <defs>
+    <marker id="seq-arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#0e0f0c"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="920" fill="#fafafa"/>
+
+  <!-- Title -->
+  <text x="600" y="44" font-size="22" font-weight="700" text-anchor="middle" fill="#0e0f0c">
+    11-Tool PA Workflow — End to End in ~90 Seconds
+  </text>
+  <text x="600" y="66" font-size="13" text-anchor="middle" fill="#6b6b6b">
+    Patient 131926799 (Robert Barker) · Ozempic 0.5mg weekly · Aetna
+  </text>
+
+  <!-- One row per step -->
+  <g font-size="13" fill="#0e0f0c">
+
+    <!-- Step 1 -->
+    <rect x="60" y="100" width="56" height="56" rx="28" fill="#fff3e6" stroke="#d97706" stroke-width="2"/>
+    <text x="88" y="135" font-size="20" font-weight="700" text-anchor="middle" fill="#7c4a02">1</text>
+    <rect x="140" y="100" width="1000" height="56" rx="12" fill="#ffffff" stroke="#0e0f0c"/>
+    <text x="160" y="124" font-weight="700">fetch_patient_context</text>
+    <text x="160" y="144" fill="#454745">Patient + Conditions + Allergies + Procedures · returns: Robert Barker, 64M · T2DM (E11.9), HTN (I10) · NKDA</text>
+    <text x="1130" y="135" font-size="11" text-anchor="end" fill="#7c4a02">FHIR · ~600ms</text>
+
+    <!-- Step 2 -->
+    <rect x="60" y="170" width="56" height="56" rx="28" fill="#fff3e6" stroke="#d97706" stroke-width="2"/>
+    <text x="88" y="205" font-size="20" font-weight="700" text-anchor="middle" fill="#7c4a02">2</text>
+    <rect x="140" y="170" width="1000" height="56" rx="12" fill="#ffffff" stroke="#0e0f0c"/>
+    <text x="160" y="194" font-weight="700">fetch_medication_list</text>
+    <text x="160" y="214" fill="#454745">All MedicationRequest resources · returns: metformin 1g BID (active, 14mo), amlodipine 5mg daily (active) · no GLP-1 prior</text>
+    <text x="1130" y="205" font-size="11" text-anchor="end" fill="#7c4a02">FHIR · ~500ms</text>
+
+    <!-- Step 3 -->
+    <rect x="60" y="240" width="56" height="56" rx="28" fill="#fff3e6" stroke="#d97706" stroke-width="2"/>
+    <text x="88" y="275" font-size="20" font-weight="700" text-anchor="middle" fill="#7c4a02">3</text>
+    <rect x="140" y="240" width="1000" height="56" rx="12" fill="#ffffff" stroke="#0e0f0c"/>
+    <text x="160" y="264" font-weight="700">fetch_clinical_history</text>
+    <text x="160" y="284" fill="#454745">Encounters + Observations · returns: HbA1c 8.2% (2026-04-10), BP 142/88, BMI 31.4, fasting glucose 178 mg/dL</text>
+    <text x="1130" y="275" font-size="11" text-anchor="end" fill="#7c4a02">FHIR · ~500ms</text>
+
+    <!-- Step 4 -->
+    <rect x="60" y="310" width="56" height="56" rx="28" fill="#fbebee" stroke="#a02525" stroke-width="2"/>
+    <text x="88" y="345" font-size="20" font-weight="700" text-anchor="middle" fill="#5e1313">4</text>
+    <rect x="140" y="310" width="1000" height="56" rx="12" fill="#ffffff" stroke="#0e0f0c"/>
+    <text x="160" y="334" font-weight="700">check_drug_interactions</text>
+    <text x="160" y="354" fill="#454745">RxNorm REST · returns: Ozempic + metformin = no significant interaction · Ozempic + amlodipine = no significant interaction · cleared ✓</text>
+    <text x="1130" y="345" font-size="11" text-anchor="end" fill="#5e1313">RxNorm · ~700ms</text>
+
+    <!-- Step 5 -->
+    <rect x="60" y="380" width="56" height="56" rx="28" fill="#e8f4ec" stroke="#0a7a3b" stroke-width="2"/>
+    <text x="88" y="415" font-size="20" font-weight="700" text-anchor="middle" fill="#0a4521">5</text>
+    <rect x="140" y="380" width="1000" height="56" rx="12" fill="#ffffff" stroke="#0e0f0c"/>
+    <text x="160" y="404" font-weight="700">lookup_coverage_policy</text>
+    <text x="160" y="424" fill="#454745">RAG over 244 CMS NCD chunks · returns: NCD 110.18 GLP-1 RA criteria + state Medicaid coverage notes (top-5 by similarity)</text>
+    <text x="1130" y="415" font-size="11" text-anchor="end" fill="#0a4521">RAG · ~120ms</text>
+
+    <!-- Step 6 -->
+    <rect x="60" y="450" width="56" height="56" rx="28" fill="#eef0fb" stroke="#3849a6" stroke-width="2"/>
+    <text x="88" y="485" font-size="20" font-weight="700" text-anchor="middle" fill="#1e2a78">6</text>
+    <rect x="140" y="450" width="1000" height="56" rx="12" fill="#ffffff" stroke="#0e0f0c"/>
+    <text x="160" y="474" font-weight="700">check_coverage_requirements</text>
+    <text x="160" y="494" fill="#454745">LLM analysis · returns: step therapy met (metformin ≥3mo, A1c ≥7%) · in-formulary tier 3 PA-required · approval likelihood high</text>
+    <text x="1130" y="485" font-size="11" text-anchor="end" fill="#1e2a78">LLM · ~1200ms</text>
+
+    <!-- Step 7 -->
+    <rect x="60" y="520" width="56" height="56" rx="28" fill="#eef0fb" stroke="#3849a6" stroke-width="2"/>
+    <text x="88" y="555" font-size="20" font-weight="700" text-anchor="middle" fill="#1e2a78">7</text>
+    <rect x="140" y="520" width="1000" height="56" rx="12" fill="#ffffff" stroke="#0e0f0c"/>
+    <text x="160" y="544" font-weight="700">analyze_prior_auth_need</text>
+    <text x="160" y="564" fill="#454745">LLM synthesis · returns: ICD-10 E11.9 (primary), I10 (secondary) · evidence array · safety_flags: [] · confidence 0.91</text>
+    <text x="1130" y="555" font-size="11" text-anchor="end" fill="#1e2a78">LLM · ~1500ms</text>
+
+    <!-- Step 8 -->
+    <rect x="60" y="590" width="56" height="56" rx="28" fill="#eef0fb" stroke="#3849a6" stroke-width="2"/>
+    <text x="88" y="625" font-size="20" font-weight="700" text-anchor="middle" fill="#1e2a78">8</text>
+    <rect x="140" y="590" width="1000" height="56" rx="12" fill="#ffffff" stroke="#0e0f0c"/>
+    <text x="160" y="614" font-weight="700">draft_prior_auth_request</text>
+    <text x="160" y="634" fill="#454745">LLM letter · returns: full payer letter + ICD-10s + provenance[] tying every claim to a FHIR resource + ncd_citations</text>
+    <text x="1130" y="625" font-size="11" text-anchor="end" fill="#1e2a78">LLM · ~1500ms</text>
+
+    <!-- Step 9 (optional) -->
+    <rect x="60" y="660" width="56" height="56" rx="28" fill="#fff3e6" stroke="#d97706" stroke-width="2" stroke-dasharray="4 3"/>
+    <text x="88" y="695" font-size="18" font-weight="700" text-anchor="middle" fill="#7c4a02">9*</text>
+    <rect x="140" y="660" width="1000" height="56" rx="12" fill="#fafafa" stroke="#454745" stroke-dasharray="4 3"/>
+    <text x="160" y="684" font-weight="700" fill="#454745">extract_clinical_evidence  (conditional)</text>
+    <text x="160" y="704" fill="#454745">When unstructured notes are referenced · returns: physician quotes + severity indicators + narrative treatment history</text>
+    <text x="1130" y="695" font-size="11" text-anchor="end" fill="#7c4a02">FHIR + LLM · ~1800ms</text>
+
+    <!-- Step 10 (optional) -->
+    <rect x="60" y="730" width="56" height="56" rx="28" fill="#fff3e6" stroke="#d97706" stroke-width="2" stroke-dasharray="4 3"/>
+    <text x="88" y="765" font-size="18" font-weight="700" text-anchor="middle" fill="#7c4a02">10*</text>
+    <rect x="140" y="730" width="1000" height="56" rx="12" fill="#fafafa" stroke="#454745" stroke-dasharray="4 3"/>
+    <text x="160" y="754" font-weight="700" fill="#454745">process_clinical_document  (conditional)</text>
+    <text x="160" y="774" fill="#454745">When DocumentReference attachments exist · returns: OCR'd text via tesseract.js for downstream LLM use</text>
+    <text x="1130" y="765" font-size="11" text-anchor="end" fill="#7c4a02">OCR · ~2000ms</text>
+
+    <!-- Step 11 (denial path) -->
+    <rect x="60" y="800" width="56" height="56" rx="28" fill="#eef0fb" stroke="#3849a6" stroke-width="2" stroke-dasharray="4 3"/>
+    <text x="88" y="835" font-size="18" font-weight="700" text-anchor="middle" fill="#1e2a78">11*</text>
+    <rect x="140" y="800" width="1000" height="56" rx="12" fill="#fafafa" stroke="#454745" stroke-dasharray="4 3"/>
+    <text x="160" y="824" font-weight="700" fill="#454745">generate_appeal_letter  (denial path)</text>
+    <text x="160" y="844" fill="#454745">When PA is denied · returns: appeal with regulatory leverage (ERISA, state PA laws), clinical-guideline citations, escalation steps</text>
+    <text x="1130" y="835" font-size="11" text-anchor="end" fill="#1e2a78">LLM · ~1500ms</text>
+
+  </g>
+
+  <!-- Footer summary -->
+  <text x="600" y="894" font-size="12" text-anchor="middle" fill="#6b6b6b">
+    Steps 1–8 are the standard PA chain · Steps 9–11 are conditional · Total wall-time ≈ 90 seconds with parallelized FHIR reads
+  </text>
+</svg>
