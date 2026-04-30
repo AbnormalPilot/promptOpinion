@@ -60,10 +60,20 @@ export function reliabilityDiagram(): Array<{ bin: string; predicted_avg: number
   return out;
 }
 
-/** Simple temperature scaling: if model is over-confident, push probabilities toward 0.5. */
+/** Simple temperature scaling: if model is over-confident, push probabilities toward 0.5.
+ *
+ * Guards (H2):
+ *  - Activate only at N >= 10 (was 5). Below that the slope is dominated by
+ *    noise — five denials in a row would set baseRate to 0 and pull every
+ *    rawP toward zero.
+ *  - If slope < 0.3 (model anti-correlated or near-flat), do NOT blend —
+ *    return the unconditional base rate. Blending under a near-zero/negative
+ *    slope previously produced a quiet 30%-rawP / 70%-baseRate mix that
+ *    hides a real bug.
+ */
 export function calibratedProbability(rawP: number): number {
   const pts = loadPoints();
-  if (pts.length < 5) return rawP;
+  if (pts.length < 10) return rawP;
   // estimate temperature via slope of (predicted, actual)
   const meanP = pts.reduce((s, p) => s + p.predicted, 0) / pts.length;
   const meanA = pts.reduce((s, p) => s + p.actual, 0) / pts.length;
@@ -73,7 +83,7 @@ export function calibratedProbability(rawP: number): number {
     den += (p.predicted - meanP) ** 2;
   }
   const slope = den === 0 ? 1 : num / den;
-  // if slope < 1: model over-confident; pull toward base rate
+  if (slope < 0.3) return meanA; // anti-correlation / near-flat — fall back to base rate alone
   if (slope >= 0.9 && slope <= 1.1) return rawP;
   const baseRate = meanA;
   const blend = Math.max(0.3, Math.min(1, slope));
