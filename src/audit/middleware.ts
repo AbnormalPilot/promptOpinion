@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import { randomUUID } from "crypto";
-import { appendFileSync, mkdirSync, existsSync } from "fs";
-import { dirname } from "path";
 import { hashPatientId } from "./redact";
 import { SHARP_HEADERS } from "../sharp/constants";
+import { appendJsonl } from "../util/jsonl";
 
 const AUDIT_LOG_PATH = process.env.AUDIT_LOG_PATH || "data/audit.jsonl";
 const AUDIT_ENABLED = process.env.AUDIT_DISABLED !== "1";
@@ -17,20 +16,13 @@ declare global {
   }
 }
 
-function ensureDir(path: string) {
-  const dir = dirname(path);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-}
-
 export function writeAudit(event: Record<string, unknown>) {
   if (!AUDIT_ENABLED) return;
-  try {
-    ensureDir(AUDIT_LOG_PATH);
-    appendFileSync(AUDIT_LOG_PATH, JSON.stringify({ ts: new Date().toISOString(), ...event }) + "\n");
-  } catch (err) {
-    // Audit must never break the request path
+  // Fire-and-forget: serialised through per-file mutex in appendJsonl.
+  // Audit must never break the request path, and must never block it.
+  appendJsonl(AUDIT_LOG_PATH, { ts: new Date().toISOString(), ...event }).catch((err) => {
     console.error("audit write failed:", (err as Error).message);
-  }
+  });
 }
 
 export function auditMiddleware(req: Request, res: Response, next: NextFunction) {

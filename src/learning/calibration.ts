@@ -16,9 +16,17 @@ function ensureDir(path: string) {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
+// Calibration records serialise to ~120 bytes — well under PIPE_BUF on every
+// supported OS (512B macOS, 4KB Linux), so appendFileSync is POSIX-atomic for
+// these payloads even under concurrent Express handlers. No mutex needed.
+// Memory + audit JSONLs (which DO exceed PIPE_BUF) use src/util/jsonl.ts.
 export function logPrediction(p: CalibrationPoint) {
   ensureDir(CALIB_PATH);
-  appendFileSync(CALIB_PATH, JSON.stringify(p) + "\n");
+  try {
+    appendFileSync(CALIB_PATH, JSON.stringify(p) + "\n");
+  } catch (err) {
+    console.error("calibration write failed:", (err as Error).message);
+  }
 }
 
 function loadPoints(): CalibrationPoint[] {

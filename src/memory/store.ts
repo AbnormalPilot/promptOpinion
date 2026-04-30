@@ -1,7 +1,8 @@
-import { existsSync, mkdirSync, readFileSync, appendFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname } from "path";
 import { randomUUID } from "crypto";
 import { embed, cosine } from "./embed";
+import { appendJsonl } from "../util/jsonl";
 
 export interface PACase {
   id: string;
@@ -40,7 +41,11 @@ function load(): MemoryRecord[] {
   }
   try {
     const lines = readFileSync(MEMORY_PATH, "utf8").trim().split("\n").filter(Boolean);
-    cache = lines.map((l) => JSON.parse(l) as MemoryRecord);
+    // Skip individual malformed lines instead of zeroing the cache — preserves
+    // recovery if a single concurrent write was interleaved before the C4 fix.
+    cache = lines.flatMap((l) => {
+      try { return [JSON.parse(l) as MemoryRecord]; } catch { return []; }
+    });
   } catch (err) {
     console.error("memory load error:", (err as Error).message);
     cache = [];
@@ -71,8 +76,7 @@ export async function recordCase(c: Omit<PACase, "id" | "ts">): Promise<MemoryRe
   };
   const embedding = await embed(caseText(full));
   const record: MemoryRecord = { ...full, embedding };
-  ensureDir(MEMORY_PATH);
-  appendFileSync(MEMORY_PATH, JSON.stringify(record) + "\n");
+  await appendJsonl(MEMORY_PATH, record);
   if (cache) cache.push(record);
   return record;
 }
