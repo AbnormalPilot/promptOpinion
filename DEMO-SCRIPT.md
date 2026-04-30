@@ -188,9 +188,15 @@ github.com/<your-handle>/clinicalcontext  ·  Marketplace: clinicalcontext
 
 ## Numbers used on camera
 
-All probabilities and Brier figures shown above (0.42 → 0.81, the cold/warm
-delta) are illustrative for the script. Replace with your actual run values
-from `[FILL FROM eval/REPORT.md]` before locking the cut.
+**Measured headline numbers** (eval/REPORT.md, 20 scenarios, offline heuristic + memory):
+
+- Cold Brier: **0.047**
+- Warm Brier: **0.024**
+- Calibration improvement: **49%** after seeing 20 ground-truth outcomes
+- 0.5-threshold accuracy: **95%** (cold and warm)
+- Memory grows 0 → 20 between passes
+
+The 0.42 → 0.81 demo probability tick is dramatized for the script — replace with the exact numbers from a fresh run on the patient/drug pair you record.
 
 ---
 

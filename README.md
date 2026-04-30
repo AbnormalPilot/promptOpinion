@@ -157,7 +157,19 @@ Every PA the system handles makes the **next** one stronger. Three persistent st
 - **`data/patterns.json`** — adversarial weakness patterns auto-bucketed across 12 categories. Top-5 frequent patterns are auto-merged into the draft system prompt as "AVOID THESE" rules.
 - **`data/calibration.jsonl`** — predicted vs actual log. Brier score + reliability diagram + temperature scaling pull future predictions toward the base rate when the model is over-confident.
 
-The `eval/` runner executes the 20-scenario golden set twice — **cold** (empty memory) and **warm** (memory + patterns populated) — and emits a measurable learning curve to `eval/REPORT.md`. See [`LEARNING.md`](./LEARNING.md) for the full architecture.
+The `eval/` runner executes the 20-scenario golden set twice — **cold** (empty memory) and **warm** (memory + patterns populated) — and emits a measurable learning curve to `eval/REPORT.md`.
+
+**Measured numbers (offline heuristic predictor + memory retrieval, 20 scenarios):**
+
+| Metric | Cold | Warm | Delta |
+|---|---|---|---|
+| Brier score (lower better) | **0.047** | **0.024** | **49% better calibration** |
+| 0.5-threshold accuracy | 95% | 95% | — |
+| Memory size | 0 cases | 20 cases | +20 |
+
+The closed-loop signal is the Brier delta: predictions become measurably more calibrated as the system accumulates outcomes. The eval runs offline (no LLM key needed) so judges can reproduce the numbers without a Groq account. Re-run with `GROQ_API_KEY=... npx tsx eval/run.ts` to use the LLM-backed predictor.
+
+See [`LEARNING.md`](./LEARNING.md) for the full architecture and [`eval/REPORT.md`](./eval/REPORT.md) for the per-scenario breakdown.
 
 ---
 

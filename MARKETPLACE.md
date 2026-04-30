@@ -162,8 +162,16 @@ What happens, end-to-end:
 8. After submission, **tool 17 records** the outcome.
 9. **Tool 18 reports** Brier score and memory growth.
 
-Approximate runtime for the full v2 chain: 90–120 s. Numbers above are
-illustrative — see `[FILL FROM eval/REPORT.md]` for the measured eval set.
+Approximate runtime for the full v2 chain: 90–120 s.
+
+**Measured eval (20-scenario golden set, offline heuristic + memory retrieval):**
+
+| Metric | Cold (empty memory) | Warm (memory + patterns) | Delta |
+|---|---|---|---|
+| Brier score (lower better) | 0.047 | 0.024 | **49% improvement** |
+| 0.5-threshold accuracy | 95% | 95% | — |
+
+The 49% Brier improvement is the closed-loop signal: predictions become measurably more calibrated as the system accumulates outcomes.
 
 ---
 
