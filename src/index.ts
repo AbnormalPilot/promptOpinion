@@ -7,16 +7,28 @@ import * as tools from "./tools/index";
 import { IMcpTool } from "./tools/types";
 import { getFhirContext, getPatientId } from "./sharp/context";
 import { FHIR_CONTEXT_EXTENSION } from "./sharp/constants";
+import { auditMiddleware, writeAudit } from "./audit/middleware";
+import { memorySize } from "./memory/store";
+import { brierScore } from "./learning/calibration";
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
+app.use(auditMiddleware);
 
 // Health check
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", server: "clinicalcontext-mcp", version: "1.0.0" });
+  res.json({
+    status: "ok",
+    server: "clinicalcontext-mcp",
+    version: "2.0.0",
+    learning: {
+      memory_size: memorySize(),
+      calibration_brier: brierScore(),
+    },
+  });
 });
 
 // MCP endpoint — stateless, fresh server per request
@@ -57,6 +69,8 @@ app.post("/mcp", async (req, res) => {
     for (const tool of Object.values<IMcpTool>(tools)) {
       tool.registerTool(server, fhirConfig);
     }
+
+    writeAudit({ type: "mcp_session_open", traceId: req.traceId, patientHash: req.patientHash, tools: Object.keys(tools).length });
 
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

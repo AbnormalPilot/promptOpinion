@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import { loadCmsNcds } from "./cms-loader";
 import { buildIndex, queryIndex, getIndexStats } from "./vector-store";
+import { embedText } from "./embeddings";
 
 const PORT = parseInt(process.env.RAG_PORT || "3001", 10);
 const app = express();
@@ -68,6 +69,25 @@ app.post("/query", async (req, res) => {
         relevance_score: Math.round(r.score * 100) / 100,
       })),
     });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Embedding endpoint — used by MCP server's self-learning memory store
+app.post("/embed", async (req, res) => {
+  const { text } = req.body || {};
+  if (typeof text !== "string" || text.trim().length === 0) {
+    res.status(400).json({ error: "Field 'text' must be a non-empty string" });
+    return;
+  }
+  if (text.length > 10000) {
+    res.status(400).json({ error: "Field 'text' too long (max 10000 chars)" });
+    return;
+  }
+  try {
+    const embedding = await embedText(text);
+    res.json({ embedding, dim: embedding.length });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

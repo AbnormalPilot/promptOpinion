@@ -37,7 +37,9 @@
 - **OCR**: tesseract.js
 - **Drug Safety**: RxNorm REST API (free, no key)
 
-## 11 MCP Tools
+## 18 MCP Tools
+
+Core PA workflow:
 
 | # | Tool | Type | Purpose |
 |---|------|------|---------|
@@ -50,8 +52,22 @@
 | 7 | check_coverage_requirements | LLM | Step therapy + formulary analysis |
 | 8 | check_drug_interactions | API | RxNorm drug interaction check |
 | 9 | analyze_prior_auth_need | LLM+RAG | Clinical justification with ICD-10 mapping |
-| 10 | draft_prior_auth_request | LLM+RAG | Complete PA letter |
+| 10 | draft_prior_auth_request | LLM+RAG+Memory | Complete PA letter (auto-injects priors + patterns + dose-safety) |
 | 11 | generate_appeal_letter | LLM+RAG | Appeal for denied PA |
+
+Self-learning + probabilistic layer:
+
+| # | Tool | Type | Purpose |
+|---|------|------|---------|
+| 12 | predict_approval_probability | LLM+Memory | Calibrated forecast anchored in retrieved priors |
+| 13 | suggest_counterfactual_evidence | LLM | What evidence would lift probability the most |
+| 14 | adversarial_review | LLM+Patterns | Denying-reviewer critique; findings feed pattern store |
+| 15 | patient_explainer | LLM | 6th-grade plain-English summary for patient/family |
+| 16 | cost_alternative_analysis | RxNorm+LLM | Therapeutic alternatives that may avoid PA |
+| 17 | record_pa_outcome | Memory+Calibration | Closes the loop — writes outcome to memory + calibration log |
+| 18 | learning_stats | Introspection | Memory size, Brier, reliability, top patterns |
+
+See [LEARNING.md](./LEARNING.md) for the self-learning architecture and [eval/](./eval/) for the cold-vs-warm learning curve runner.
 
 ## Running
 

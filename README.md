@@ -1,7 +1,7 @@
 # ClinicalContext
 
-> **Prior authorization in 90 seconds, not 20 minutes.**
-> Standards-compliant **MCP server** + **A2A agent** that automates the full PA workflow on real FHIR data, using a CMS-NCD-grounded RAG pipeline and a chained 11-tool reasoning chain.
+> **Prior authorization in 90 seconds, not 20 minutes — and every PA the system handles makes the next one stronger.**
+> Standards-compliant **MCP server** (18 tools) + **A2A agent** for closed-loop, self-learning, court-grade-cited prior authorization on real FHIR data.
 
 [![MCP](https://img.shields.io/badge/MCP-1.25.1-blue)](https://modelcontextprotocol.io/) [![A2A](https://img.shields.io/badge/A2A-v1-green)](https://a2a.dev) [![FHIR](https://img.shields.io/badge/FHIR-R4-red)](https://hl7.org/fhir/R4/) [![SHARP](https://img.shields.io/badge/SHARP-context-purple)](https://promptopinion.ai) [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
@@ -9,13 +9,27 @@ Built for the **[Agents Assemble: The Healthcare AI Endgame](https://agents-asse
 
 ---
 
+## What's different
+
+Most PA-automation submissions stop at "generate a letter." ClinicalContext closes the loop:
+
+1. **Predict** approval probability against retrieved similar prior cases — calibrated, not optimistic.
+2. **Counterfactual** recommendations: "what evidence would lift this from 0.42 → 0.81?"
+3. **Draft** with self-injected weakness patterns harvested from past adversarial reviews.
+4. **Adversarial review** by a denying-reviewer LLM before submission.
+5. **Record outcome** — every approval/denial improves the next prediction (memory + temperature scaling + pattern bucket).
+
+See [LEARNING.md](LEARNING.md) for the full architecture and [eval/REPORT.md](eval/REPORT.md) for the cold-vs-warm learning curve numbers.
+
+---
+
 ## TL;DR for Judges
 
 | Criterion | How ClinicalContext Scores |
 |---|---|
-| **AI Factor** | LLM reasoning over unstructured FHIR data + RAG over 244 CMS NCD policy chunks. Maps SNOMED→ICD-10, infers medical necessity, drafts payer-ready letters with citations. **No rule-based system can do this.** |
-| **Potential Impact** | **20 min → 90 sec per request** (~92% reduction). At 40 PA/day per clinic, **~12 staff hours saved daily**. PA workflows cost the US health system **~$35B/year** (AMA). |
-| **Feasibility** | Stateless MCP, SHARP-propagated FHIR tokens (never logged), human-in-the-loop draft labeling, drug-interaction safety check, allergy surfacing, confidence scores, regulatory category = administrative not clinical. **Ships into a real EHR session today.** |
+| **AI Factor** | LLM reasoning over unstructured FHIR + RAG over 244 CMS NCD chunks + a **closed self-learning loop** (memory retrieval, calibration logging, harvested adversarial patterns, counterfactual evidence recommender). Probabilistic, not rule-based. |
+| **Potential Impact** | **20 min → 90 sec per request**. At 40 PA/day per clinic, **~12 staff hours saved daily**. Closed loop means accuracy compounds: published Brier score and reliability diagram in `/health` and `eval/REPORT.md`. PA workflows cost ~$35B/yr (AMA). |
+| **Feasibility** | Stateless MCP, SHARP-propagated FHIR tokens (audit-logged with HMAC-hashed patient IDs), PHI redaction middleware on outbound LLM calls, dose-safety pre-flight (renal/pediatric/pregnancy block before draft), human-in-the-loop draft labeling, court-grade provenance citations on every claim. |
 
 **Submission type:** MCP Server + External A2A Agent (both tracks covered)
 **Marketplace listing:** *[fill after publishing]*
@@ -27,7 +41,8 @@ Built for the **[Agents Assemble: The Healthcare AI Endgame](https://agents-asse
 
 - [The Problem](#the-problem)
 - [Architecture](#architecture)
-- [The 11-Tool Chain](#the-11-tool-chain)
+- [The 18-Tool Chain](#the-18-tool-chain)
+- [Self-Learning Loop](#self-learning-loop)
 - [Standards Compliance](#standards-compliance)
 - [Quick Start](#quick-start)
 - [Demo Workflow](#demo-workflow)
@@ -100,7 +115,9 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full deep-dive.
 
 ---
 
-## The 11-Tool Chain
+## The 18-Tool Chain
+
+### Core PA workflow (1–11)
 
 | # | Tool | Type | What It Does |
 |---|------|------|--------------|
@@ -112,11 +129,35 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full deep-dive.
 | 6 | `lookup_coverage_policy` | RAG | Retrieves CMS NCD policy text chunks via local-embedding similarity search |
 | 7 | `check_coverage_requirements` | LLM | Step-therapy + formulary analysis from patient FHIR data |
 | 8 | `check_drug_interactions` | API | RxNorm REST drug-drug interaction safety check |
-| 9 | `analyze_prior_auth_need` | LLM + RAG | Synthesizes clinical justification with ICD-10 mapping + confidence score |
-| 10 | `draft_prior_auth_request` | LLM + RAG | Generates complete PA letter with NCD citations + provenance |
+| 9 | `analyze_prior_auth_need` | LLM + RAG | Clinical justification with ICD-10 mapping + confidence score |
+| 10 | `draft_prior_auth_request` | LLM + RAG + Memory | Complete PA letter — auto-injects similar prior cases + harvested weakness patterns + dose-safety pre-check + court-grade provenance |
 | 11 | `generate_appeal_letter` | LLM + RAG | Drafts appeals for denied PAs with regulatory leverage |
 
+### Probabilistic + self-learning layer (12–18) — *new*
+
+| # | Tool | Type | What It Does |
+|---|------|------|--------------|
+| 12 | `predict_approval_probability` | LLM + Memory | Calibrated forecast of first-submission approval, anchored in retrieved similar prior cases. Returns probability, confidence band, key factors, and primary denial risks. Calibration auto-applied. |
+| 13 | `suggest_counterfactual_evidence` | LLM | Given current evidence + probability, identifies the SPECIFIC additional evidence that would lift approval probability the most, ranked by impact-per-effort. |
+| 14 | `adversarial_review` | LLM + Patterns | Acts as a denying payer reviewer searching for reasons to reject. Findings are auto-bucketed into the patterns store and reinjected into future drafts. |
+| 15 | `patient_explainer` | LLM | 6th-grade plain-English summary of the PA situation for the patient and family. |
+| 16 | `cost_alternative_analysis` | RxNorm + LLM | Therapeutic alternatives that may avoid PA entirely or lower patient cost. Surfaces a `best_no_pa_option`. |
+| 17 | `record_pa_outcome` | Memory + Calibration | Writes the actual outcome to memory. Closes the learning loop — every recorded case improves future predictions, retrievals, and drafts. |
+| 18 | `learning_stats` | Introspection | Returns memory size, Brier score, reliability diagram, top weakness patterns. Trust-by-transparency. |
+
 **The agent chains these automatically** — a single natural-language prompt triggers the right subset and assembles the result. See [`a2a-agent/src/agent.ts`](./a2a-agent/src/agent.ts) for the orchestration instruction.
+
+---
+
+## Self-Learning Loop
+
+Every PA the system handles makes the **next** one stronger. Three persistent stores compound knowledge:
+
+- **`data/memory.jsonl`** — case memory, embedded for similarity retrieval. Top-3 nearest neighbors are injected into the next draft prompt as priors. Denial reasons from neighbors become explicit warnings the next draft must address.
+- **`data/patterns.json`** — adversarial weakness patterns auto-bucketed across 12 categories. Top-5 frequent patterns are auto-merged into the draft system prompt as "AVOID THESE" rules.
+- **`data/calibration.jsonl`** — predicted vs actual log. Brier score + reliability diagram + temperature scaling pull future predictions toward the base rate when the model is over-confident.
+
+The `eval/` runner executes the 20-scenario golden set twice — **cold** (empty memory) and **warm** (memory + patterns populated) — and emits a measurable learning curve to `eval/REPORT.md`. See [`LEARNING.md`](./LEARNING.md) for the full architecture.
 
 ---
 

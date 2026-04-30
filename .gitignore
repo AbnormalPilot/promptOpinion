@@ -3,3 +3,9 @@ dist/
 .env
 *.js.map
 .DS_Store
+data/memory.jsonl
+data/audit.jsonl
+data/calibration.jsonl
+data/patterns.json
+eval/results.json
+eval/REPORT.md
