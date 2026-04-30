@@ -26,18 +26,20 @@ const RENAL_ADJUSTED_DRUGS: Record<string, { thresholdEgfr: number; advice: stri
   semaglutide: { thresholdEgfr: 30, advice: "Caution with severe renal impairment, monitor for dehydration." },
 };
 
+// Drugs to AVOID in pregnancy. Note: FDA letter categories (A/B/C/D/X) were retired in 2015;
+// in 2021 the FDA REMOVED the absolute contraindication for statins in pregnancy, so they
+// are no longer hard-blocked here. The remaining entries are absolute contraindications.
 const PREGNANCY_CATEGORY_X: string[] = [
   "isotretinoin", "warfarin", "methotrexate", "thalidomide", "lenalidomide",
-  "ribavirin", "finasteride", "leflunomide", "atorvastatin", "rosuvastatin",
-  "simvastatin", "lovastatin", "fluvastatin", "pravastatin",
+  "ribavirin", "finasteride", "leflunomide",
 ];
 
-const PEDIATRIC_BLACKBOX: Record<string, { minAge: number; reason: string }> = {
+const PEDIATRIC_BLACKBOX: Record<string, { minAge: number; reason: string; hardBlock?: boolean }> = {
   ciprofloxacin: { minAge: 18, reason: "Tendon rupture / cartilage risk in pediatrics outside specific indications." },
-  doxycycline: { minAge: 8, reason: "Tooth discoloration under age 8." },
+  doxycycline: { minAge: 8, reason: "Tooth discoloration under age 8.", hardBlock: true },
   aspirin: { minAge: 16, reason: "Reye syndrome risk under age 16 with viral illness." },
-  codeine: { minAge: 12, reason: "FDA contraindicated under 12 due to ultra-rapid metabolizer risk." },
-  tramadol: { minAge: 12, reason: "FDA contraindicated under 12." },
+  codeine: { minAge: 12, reason: "FDA contraindicated under 12 due to ultra-rapid metabolizer risk.", hardBlock: true },
+  tramadol: { minAge: 12, reason: "FDA contraindicated under 12.", hardBlock: true },
 };
 
 export function checkDoseSafety(input: DoseSafetyInput): DoseSafetyFinding[] {
@@ -67,8 +69,10 @@ export function checkDoseSafety(input: DoseSafetyInput): DoseSafetyFinding[] {
   for (const [k, v] of Object.entries(PEDIATRIC_BLACKBOX)) {
     if (drug.includes(k) && input.age != null && input.age < v.minAge) {
       findings.push({
-        level: "warning",
-        message: `Pediatric concern: ${k} not first-line under age ${v.minAge}.`,
+        level: v.hardBlock ? "block" : "warning",
+        message: v.hardBlock
+          ? `Pediatric contraindication: ${k} FDA-contraindicated under age ${v.minAge}.`
+          : `Pediatric concern: ${k} not first-line under age ${v.minAge}.`,
         recommendation: v.reason,
       });
     }
