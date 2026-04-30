@@ -109,7 +109,7 @@ function makeTool(
   });
 }
 
-/** All 11 MCP tools as ADK FunctionTools */
+/** All 18 MCP tools as ADK FunctionTools (11 core + 7 v2 self-learning) */
 export const mcpTools = [
   makeTool("fetch_patient_context", "Load patient demographics, conditions, allergies, procedures from FHIR. Call this FIRST.", {
     patient_id: z.string().optional().describe("FHIR Patient resource ID"),
@@ -164,4 +164,42 @@ export const mcpTools = [
     payer_name: z.string().optional(),
     original_pa_date: z.string().optional(),
   }),
+  // ===== v2 Self-Learning Tools =====
+  makeTool("predict_approval_probability", "Predict the probability that a PA will be approved as currently scoped, anchored in past outcomes (memory). Run AFTER analyze_prior_auth_need and BEFORE drafting.", {
+    patient_id: z.string().optional(),
+    requested_medication_or_procedure: z.string(),
+    payer_name: z.string().optional(),
+    clinical_analysis: z.any().optional().describe("Output of analyze_prior_auth_need, if available"),
+  }),
+  makeTool("suggest_counterfactual_evidence", "Identify the smallest set of additional evidence (labs, prior trials, notes) that would most increase approval probability. Use when predict_approval_probability < 0.6.", {
+    patient_id: z.string().optional(),
+    requested_medication_or_procedure: z.string(),
+    payer_name: z.string().optional(),
+    current_probability: z.number().optional(),
+  }),
+  makeTool("adversarial_review", "Run a payer-style adversarial review of a draft PA or appeal letter. Returns denial_probability_if_submitted_as_is and a must-fix list. If denial_probability > 0.4, loop back into the drafter.", {
+    draft_letter: z.string().describe("The PA letter or appeal letter to be adversarially reviewed"),
+    requested_medication_or_procedure: z.string().optional(),
+    payer_name: z.string().optional(),
+  }),
+  makeTool("patient_explainer", "Generate a plain-language patient-facing explanation of the PA decision and clinical reasoning. Emit alongside the final letter.", {
+    patient_id: z.string().optional(),
+    requested_medication_or_procedure: z.string(),
+    draft_letter: z.string().optional(),
+    reading_level: z.string().optional().describe("e.g. '6th grade'"),
+  }),
+  makeTool("cost_alternative_analysis", "Surface lower-friction (no-PA-needed or cheaper) clinically reasonable alternatives. Run before drafting; if a viable no-PA option exists, ask the clinician whether to switch.", {
+    patient_id: z.string().optional(),
+    requested_medication_or_procedure: z.string(),
+    payer_name: z.string().optional(),
+  }),
+  makeTool("record_pa_outcome", "Record the final PA outcome (approved/denied/withdrawn) so the system can learn. Call AFTER the clinician submits and the payer responds.", {
+    patient_id: z.string().optional(),
+    requested_medication_or_procedure: z.string(),
+    payer_name: z.string().optional(),
+    outcome: z.enum(["approved", "denied", "withdrawn", "pending"]),
+    denial_reason: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+  makeTool("learning_stats", "Return aggregate self-learning statistics — total PAs recorded, approval rate, top denial reasons, learned patterns. Use to answer 'how does your learning loop work?'.", {}),
 ];

@@ -1,235 +1,219 @@
-# Demo Video Shooting Script
+# Demo Video Shooting Script — v2
 
-> A 3-minute video that lands every judging-criterion lever.
-> Keep your editing tight. Cut the empty space, not the substance.
+> A 3-minute video for the "Agents Assemble" healthcare AI hackathon.
+> v2 narrative: closed-loop, self-learning prior authorization. Every PA
+> makes the next one stronger.
 
 ---
 
 ## Pre-shoot checklist
 
 - [ ] All three services running locally (`docker compose up --build`).
-- [ ] MCP server published to Prompt Opinion Marketplace (URL filled in `SUBMISSION.md`).
+- [ ] MCP server published to Prompt Opinion Marketplace; URL in `SUBMISSION.md`.
 - [ ] A2A agent registered in your Prompt Opinion workspace.
-- [ ] Browser tab open on the workspace; second tab on the Marketplace listing page.
-- [ ] Test patient `131926799` (Robert Barker) confirmed reachable: `curl https://hapi.fhir.org/baseR4/Patient/131926799` returns 200.
-- [ ] Backup screenshots ready in case a live call stalls during recording (see §6).
-- [ ] Screen recorder set to 1080p, 30 fps, system + mic audio. (Loom or OBS.)
-- [ ] Quiet room. Test mic with one practice take.
-- [ ] Run the demo prompt **once before recording** so the model and embeddings are warm.
+- [ ] Test patient `131926799` (Robert Barker) reachable from HAPI R4.
+- [ ] `data/pa_memory.jsonl` warmed: at least 3 prior outcomes already recorded
+      so the cold→warm Brier delta in beat 4 is visually meaningful.
+- [ ] Two terminals open: one for `test-client.ts`, one for `curl /health`.
+- [ ] Screen recorder at 1080p / 30 fps. System audio + mic. Quiet room.
+- [ ] Run the full chain warm once before recording (Groq cold-start is ~3 s).
 
 ---
 
-## Final 3-minute script
+## 3-minute beat sheet
 
-### Title card (0:00–0:05)
+Each beat lists: **TIME · VISUAL · NARRATION · TERMINAL COMMAND**.
+
+---
+
+### Beat 0 — Hook (0:00–0:15)
+
+**TIME:** 0:00–0:15
+**VISUAL:** Black title card → cuts to a stack of paper PA forms B-roll →
+title card "ClinicalContext — closed-loop prior authorization."
+**NARRATION:**
+
+> "Prior authorization takes twenty minutes per request, and the work is
+> thrown away the moment it's submitted. Until now."
+
+**TERMINAL COMMAND:** *(none — voiceover only)*
+
+---
+
+### Beat 1 — 11-tool baseline for Robert Barker (0:15–0:45)
+
+**TIME:** 0:15–0:45
+**VISUAL:** Prompt Opinion workspace. The A2A agent receives a single prompt.
+Tool-call activity panel scrolls as the 11 baseline tools fire. End on the
+rendered PA letter for Robert Barker.
+**NARRATION:**
+
+> "Robert Barker. 64. Type 2 diabetes. HbA1c 8.2 on metformin. His doctor wants
+> Ozempic. ClinicalContext chains eleven MCP tools — pulls FHIR, searches 244
+> CMS coverage chunks, checks RxNorm for interactions, maps SNOMED to ICD-10,
+> drafts the letter. Ninety seconds. That's the baseline every healthcare-MCP
+> server ships today."
+
+**TERMINAL COMMAND:**
+
+```bash
+npx tsx test-client.ts 131926799 "Ozempic 0.5mg subcutaneous weekly"
+```
+
+(Cut to the agent log inside Prompt Opinion — the test-client output is the
+backup plate if the workspace stalls.)
+
+---
+
+### Beat 2 — The v2 layer: predict → counterfactual → adversarial (0:45–1:30)
+
+**TIME:** 0:45–1:30
+**VISUAL:** Lower-third overlay flashes each tool name as it returns:
+`predict_approval_probability` → `suggest_counterfactual_evidence` →
+`adversarial_review`. Highlight the probability number on screen — it ticks
+from **0.42 → 0.81**.
+**NARRATION:**
+
+> "Here's what's new. Before we send the letter, the predictor scores it.
+> Forty-two percent. Too risky. The counterfactual tool says: *add the
+> documented metformin trial duration and the BMI*. Adversarial review reads
+> the draft like a payer's denial team and flags two more weaknesses.
+> We re-score. Eighty-one percent. The system caught its own draft before a
+> human did."
+
+**TERMINAL COMMAND:**
+
+```bash
+# from inside the same test-client run, beats 13–15:
+#   predict_approval_probability  → 0.42
+#   suggest_counterfactual_evidence
+#   adversarial_review
+#   (re-predict after fixes)      → 0.81
+```
+
+---
+
+### Beat 3 — Closing the loop: record_pa_outcome + learning_stats (1:30–2:15)
+
+**TIME:** 1:30–2:15
+**VISUAL:** Split: left terminal runs `record_pa_outcome`, right terminal hits
+`/health`. Brier score and `memory_size` both visible. Memory size goes from
+N to N+1 on screen. The `/health` JSON shows `calibration_brier`.
+**NARRATION:**
+
+> "When the payer responds, we record the outcome. The memory store grows.
+> The next prediction uses comparable priors as a calibration prior. The
+> server's `/health` endpoint exposes the live Brier score — that's how
+> well-calibrated this thing actually is, in production, today. Every PA we
+> handle makes the next one stronger."
+
+**TERMINAL COMMANDS:**
+
+```bash
+# left pane — close the loop
+# (test-client beats 16–18 do this, but for the demo run them explicitly)
+curl -sX POST http://localhost:3000/mcp \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
+        "name":"record_pa_outcome",
+        "arguments":{"drug":"semaglutide 0.5mg weekly","diagnosis_icd10":"E11.9",
+          "payer":"Aetna","evidence_summary":"...","predicted_probability":0.81,
+          "outcome":"approved"}}}'
+
+# right pane — show calibration live
+curl -s http://localhost:3000/health | jq '{calibration_brier, memory_size}'
+```
+
+---
+
+### Beat 4 — Trust scaffolding (2:15–2:45)
+
+**TIME:** 2:15–2:45
+**VISUAL:** Four quick cuts (≈7 seconds each):
+1. SHARP headers in the request log — `x-fhir-server-url`, `x-fhir-access-token`,
+   `x-patient-id` — token redacted in logs.
+2. Audit-log entry showing tool call + provenance hash.
+3. PHI redaction: a sample MRN/DOB struck through in the patient_explainer
+   output.
+4. **Dose-safety pre-flight blocks** atorvastatin for a pregnant patient —
+   the call returns a hard refusal before the LLM ever runs.
+
+**NARRATION:**
+
+> "SHARP propagates the FHIR token without leaking it into the model context.
+> Every tool call is signed into a court-grade audit log. PHI is redacted
+> before any LLM call. And the dose-safety pre-flight refuses categorical
+> contraindications — atorvastatin in pregnancy, blocked before a single
+> token of inference."
+
+**TERMINAL COMMAND:**
+
+```bash
+# dramatic dose-safety block
+curl -sX POST http://localhost:3000/mcp \
+  -H 'content-type: application/json' \
+  -H 'x-patient-id: pregnant-test' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
+        "name":"draft_prior_auth_request",
+        "arguments":{"patient_id":"pregnant-test",
+          "requested_medication_or_procedure":"atorvastatin 40mg daily",
+          "requesting_provider":"Dr. Smith","payer_name":"Aetna"}}}' | jq .
+
+# tail the audit log
+tail -n 5 data/audit.log | jq .
+```
+
+---
+
+### Beat 5 — Close (2:45–3:00)
+
+**TIME:** 2:45–3:00
+**VISUAL:** Closing card.
 
 ```
 ClinicalContext
-Prior authorization in 90 seconds, not 20 minutes.
-Built on MCP + A2A + FHIR + SHARP.
+18 MCP tools · closed-loop · self-learning
+Every PA makes the next one stronger.
+github.com/<your-handle>/clinicalcontext  ·  Marketplace: clinicalcontext
 ```
 
-Voiceover starts at 0:05.
+**NARRATION:**
+
+> "Eighteen tools. A closed loop. Every PA makes the next one stronger.
+> Submission ready."
+
+**TERMINAL COMMAND:** *(none — fade out)*
 
 ---
 
-### Beat 1 — The pain (0:05–0:25)
+## Numbers used on camera
 
-**On screen:** B-roll of an EHR (your own dummy chart screenshot is fine). Pull-quote overlay:
-
-> *"Prior auth wastes 20 minutes per request and costs the US health system $35 billion a year." — American Medical Association*
-
-**Voiceover (≈40 words, ≈18 seconds):**
-
-> "Prior authorization is the single most-hated administrative burden in US healthcare. Twenty to forty minutes per request — pulling charts, hunting ICD-10 codes, drafting justification letters. Universally hated. Universally automatable. Watch."
+All probabilities and Brier figures shown above (0.42 → 0.81, the cold/warm
+delta) are illustrative for the script. Replace with your actual run values
+from `[FILL FROM eval/REPORT.md]` before locking the cut.
 
 ---
 
-### Beat 2 — Live demo inside Prompt Opinion (0:25–1:35)
+## Backup plan if a live call stalls
 
-**On screen:** Your Prompt Opinion workspace. The ClinicalContext A2A agent is active.
-
-**Action 1 — Type the single prompt (0:25–0:35):**
-
-```
-Draft a prior authorization for Ozempic (semaglutide 0.5mg weekly)
-for patient 131926799. Payer is Aetna. Requesting provider Dr. Smith.
-```
-
-**Voiceover during typing:**
-
-> "One prompt. The clinician's full intent."
-
-**Action 2 — Tool chain executing (0:35–1:15):**
-
-The agent fires the 11 MCP tools in sequence. The platform shows tool-call activity. Use a side panel or your video editor to overlay each tool name as it fires:
-
-- `fetch_patient_context` → "Robert Barker, 64M, T2DM + HTN"
-- `fetch_medication_list` → "Metformin 1g BID, amlodipine 5mg"
-- `fetch_clinical_history` → "HbA1c 8.2%, BP 142/88"
-- `check_drug_interactions` → "No significant interactions ✓"
-- `lookup_coverage_policy` → "NCD 110.18 — GLP-1 RA coverage criteria"
-- `check_coverage_requirements` → "Step therapy met ✓"
-- `analyze_prior_auth_need` → "Confidence 0.91, primary ICD-10 E11.9"
-- `draft_prior_auth_request` → "Letter ready"
-
-**Voiceover during chain (≈75 words, ≈30 seconds):**
-
-> "ClinicalContext chains eleven MCP tools. It pulls real patient data from a FHIR R4 server. It checks drug interactions with the public RxNorm API. It searches two hundred forty-four CMS coverage-policy chunks with local embeddings — no third-party RAG. It maps SNOMED to ICD-10. It scores its own confidence. Every clinical claim cites the FHIR field it came from. Ninety seconds. End to end."
-
-**Action 3 — Show the rendered letter (1:15–1:35):**
-
-Scroll through the generated PA letter. Pause on:
-
-- The bold `DRAFT — FOR PHYSICIAN REVIEW BEFORE SUBMISSION` header.
-- The ICD-10 codes (E11.9 primary, I10 secondary).
-- The clinical-necessity paragraphs with cited values ("HbA1c of 8.2% on 04/10/2026").
-- The NCD citation footnote.
-- The confidence badge.
-
-**Voiceover:**
-
-> "A full payer-ready letter. Signed-off by the physician before transmission. The model never invents — every value is traceable to FHIR."
+1. Cut the take. Don't recover on camera.
+2. Replace the live pane with a pre-recorded `test-client.ts` capture from a
+   warm run (record one before shooting and keep `assets/screenshots/v2/`
+   ready).
+3. Worst case: fall back to the terminal-only narrative — beats 0, 1, 2, 3, 5
+   all work as terminal-driven cuts. Beat 4 needs the live curl; pre-record it.
 
 ---
 
-### Beat 3 — Standards & interoperability (1:35–2:20)
+## Submit-day checklist
 
-**On screen:** Split screen. Left = the architecture diagram (`assets/architecture.svg`). Right = a second agent in the workspace invoking ClinicalContext.
-
-**Voiceover (≈85 words, ≈40 seconds):**
-
-> "ClinicalContext is built on four open standards. MCP — every tool is discoverable and callable by any compliant agent. A2A — full v1 agent card and JSON-RPC at /.well-known/agent-card.json. FHIR R4 — read-only access against a HAPI sandbox today, ready for SMART-on-FHIR launch tomorrow. And SHARP — Prompt Opinion's context propagation. Three headers carry the FHIR URL, the access token, and the patient ID. The token never enters the LLM context window. The MCP server is stateless. There is zero patient data on disk."
-
-**Action — Show the marketplace listing (2:00–2:20):**
-
-Switch to the Prompt Opinion Marketplace tab showing the published ClinicalContext listing.
-
-**Voiceover:**
-
-> "Published on the Prompt Opinion Marketplace. Any healthcare agent in the ecosystem can compose ClinicalContext into its workflow today."
-
----
-
-### Beat 4 — Impact and close (2:20–2:55)
-
-**On screen:** Single-slide impact card.
-
-```
-Time per PA:    20 min  →  90 sec    (~92% reduction)
-Daily savings:  ~12 hours of clinical staff time per clinic
-Sector cost:    $35B/year — addressable today
-Patient wait:   3 days   →  same-day for in-formulary requests
-```
-
-**Voiceover (≈55 words, ≈25 seconds):**
-
-> "Twenty minutes to ninety seconds. Twelve hours of clinical staff time saved per clinic per day. A thirty-five-billion-dollar annual administrative cost — addressable with technology that ships into a real EHR session today. Prior auth drafting is administrative documentation, not clinical decision-making. Regulatorily safe. Standards-native. Deployable now."
-
----
-
-### Closing card (2:55–3:00)
-
-```
-ClinicalContext
-github.com/<your-handle>/clinicalcontext
-Marketplace: promptopinion.ai/marketplace/clinicalcontext
-```
-
-End at 3:00 sharp. Devpost rejects videos over the limit.
-
----
-
-## Recording tips
-
-- **One take per beat, not the whole video.** Edit the four beats together.
-- **Mute system notifications.** macOS: Focus mode. Linux: `notify-send` paused.
-- **Record with timestamps off-camera.** A timer in your phone next to the keyboard helps you stay on pace.
-- **Run the prompt warm.** First Groq + RAG call has cold-start latency. Trigger it once before you hit Record.
-- **Overlay the tool names.** The platform may not visually highlight each tool by default. Use your editor (Final Cut, DaVinci, ScreenFlow, CapCut) to add lower-thirds.
-
----
-
-## Visual assets to prepare before shooting
-
-1. **Title card** (0:00) — solid background, `ClinicalContext` wordmark, tagline. PNG, 1920×1080.
-2. **Architecture diagram** (1:35) — `assets/architecture.svg` exported to PNG at 1920×1080.
-3. **Tool-name lower-thirds** (0:35–1:15) — eleven 1920×120 strips with the tool name + a one-line description.
-4. **Letter close-ups** (1:15–1:35) — keep the PA letter readable at 1080p; zoom to 125% in the editor when on the letter.
-5. **Marketplace screenshot** (2:00) — your published listing.
-6. **Impact card** (2:20) — solid background, four bullets per the script.
-7. **Closing card** (2:55) — wordmark + URLs.
-
-Total assets: **7 graphics + the live workspace recording**. Build them once, slot them into the timeline.
-
----
-
-## §6 — Backup plan if a live call stalls
-
-If during recording the agent hangs or a service times out:
-
-1. **Cut the take immediately.** Don't try to recover on camera.
-2. **Use pre-recorded screenshots** from `assets/screenshots/` (build these during a successful warm run before shooting).
-3. **Show a side-by-side: terminal log** of the successful run + **screenshot of the letter**. Voiceover stays the same.
-4. **Worst case: switch to the local UI** (`web/` if built) which talks to the same backend but bypasses any platform latency.
-
-The fallback should look the same to a viewer — same letter, same tools, same standards. Only the live-platform shot is replaced.
-
----
-
-## §7 — Voiceover full script (paste into prompter)
-
-Total: ~280 words, ~150 wpm = ~2:00 spoken (leaves 1:00 for B-roll, transitions, and the impact card).
-
-```
-Prior authorization is the single most-hated administrative burden in US healthcare.
-Twenty to forty minutes per request — pulling charts, hunting ICD-10 codes, drafting
-justification letters. Universally hated. Universally automatable. Watch.
-
-[on the prompt being typed]
-One prompt. The clinician's full intent.
-
-[on the tool chain firing]
-ClinicalContext chains eleven MCP tools. It pulls real patient data from a FHIR R4
-server. It checks drug interactions with the public RxNorm API. It searches two
-hundred forty-four CMS coverage-policy chunks with local embeddings — no third-party
-RAG. It maps SNOMED to ICD-10. It scores its own confidence. Every clinical claim
-cites the FHIR field it came from. Ninety seconds. End to end.
-
-[on the rendered letter]
-A full payer-ready letter. Signed-off by the physician before transmission. The
-model never invents — every value is traceable to FHIR.
-
-[on the architecture diagram]
-ClinicalContext is built on four open standards. MCP — every tool is discoverable
-and callable by any compliant agent. A2A — full v1 agent card and JSON-RPC at
-slash dot well-known slash agent dash card dot json. FHIR R4 — read-only access
-against a HAPI sandbox today, ready for SMART-on-FHIR launch tomorrow. And SHARP
-— Prompt Opinion's context propagation. Three headers carry the FHIR URL, the
-access token, and the patient ID. The token never enters the LLM context window.
-The MCP server is stateless. There is zero patient data on disk.
-
-[on the marketplace listing]
-Published on the Prompt Opinion Marketplace. Any healthcare agent in the ecosystem
-can compose ClinicalContext into its workflow today.
-
-[on the impact card]
-Twenty minutes to ninety seconds. Twelve hours of clinical staff time saved per
-clinic per day. A thirty-five-billion-dollar annual administrative cost —
-addressable with technology that ships into a real EHR session today. Prior auth
-drafting is administrative documentation, not clinical decision-making.
-Regulatorily safe. Standards-native. Deployable now.
-```
-
----
-
-## §8 — Submit-day checklist
-
-- [ ] Video is under 3:00.
-- [ ] Audio levels: -3 dB peak, no clipping.
-- [ ] All seven graphics rendered at 1920×1080.
-- [ ] Title card and closing card both visible long enough to read (≥4 seconds each).
-- [ ] Uploaded to YouTube as **Unlisted** with a clear title: "ClinicalContext — Prior Auth Automation (Agents Assemble Hackathon Demo)".
-- [ ] Description includes GitHub repo + Marketplace URL.
-- [ ] Captions auto-generated, then proofread (judges may watch muted).
-- [ ] Test the link from a private browser before pasting into Devpost.
+- [ ] Video under 3:00.
+- [ ] All eighteen tool names appear on screen at least once.
+- [ ] Probability delta (cold → counterfactual + adversarial → re-score) is
+      visible for at least 3 seconds.
+- [ ] Brier score visible from `/health`.
+- [ ] Atorvastatin-in-pregnancy block visible end-to-end.
+- [ ] Captions proofread.
+- [ ] YouTube upload as Unlisted: "ClinicalContext v2 — Closed-Loop Prior
+      Auth (Agents Assemble)."
+- [ ] Description has GitHub repo + Marketplace URL.
