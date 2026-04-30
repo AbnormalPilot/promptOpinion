@@ -9,7 +9,7 @@ class RecordOutcomeTool implements IMcpTool {
   registerTool(server: McpServer, _fhirConfig?: FhirConfig) {
     server.tool(
       "record_pa_outcome",
-      "Records the actual outcome of a submitted PA into the self-learning memory store. This is the WRITE side of the learning loop — every recorded outcome improves future predictions, retrievals, and drafts. Should be called after the payer responds.",
+      "Records the actual outcome of a submitted PA into the self-learning memory store. This is the WRITE side of the learning loop — every recorded outcome improves future predictions, retrievals, and drafts. Should be called after the payer responds.\n\noutputSchema (JSON): { recorded: boolean, case_id: string, note: string }\n\n[fhir_context_required: false]",
       {
         drug: z.string(),
         diagnosis_icd10: z.string(),

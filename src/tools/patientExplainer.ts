@@ -9,7 +9,7 @@ class PatientExplainerTool implements IMcpTool {
   registerTool(server: McpServer, _fhirConfig?: FhirConfig) {
     server.tool(
       "patient_explainer",
-      "Generates a plain-English (6th-grade reading level) summary of the PA situation for the patient and family. Explains what is being requested, why, what insurance does next, timeline, and what the patient can do. Reduces patient anxiety and improves shared decision-making.",
+      "Generates a plain-English (6th-grade reading level) summary of the PA situation for the patient and family. Explains what is being requested, why, what insurance does next, timeline, and what the patient can do. Reduces patient anxiety and improves shared decision-making.\n\noutputSchema (JSON): { what_is_happening: string, why_you_need_it: string, what_insurance_decides: string, what_you_can_do: string[], estimated_timeline: string, if_denied_what_happens: string, questions_to_ask_your_doctor: string[], reading_level_grade: number }\n\n[fhir_context_required: false]",
       {
         drug: z.string(),
         clinical_reason: z.string().describe("Plain summary of why the medication is needed"),

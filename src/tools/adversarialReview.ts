@@ -23,7 +23,7 @@ class AdversarialReviewTool implements IMcpTool {
   registerTool(server: McpServer, _fhirConfig?: FhirConfig) {
     server.tool(
       "adversarial_review",
-      "Acts as a payer medical reviewer searching for reasons to DENY the draft. Returns ranked weaknesses, denial reasons that would be cited, and required fixes. Findings are recorded to the patterns store and auto-fed into future draft prompts. Call this after draft_prior_auth_request and before submission.",
+      "Acts as a payer medical reviewer searching for reasons to DENY the draft. Returns ranked weaknesses, denial reasons that would be cited, and required fixes. Findings are recorded to the patterns store and auto-fed into future draft prompts. Call this after draft_prior_auth_request and before submission.\n\noutputSchema (JSON): { weaknesses: Array<{severity: 'critical'|'major'|'minor', category: string, finding: string, denial_reason_if_used: string, fix: string}>, denial_probability_if_submitted_as_is: number, must_fix_before_submission: string[], overall_assessment: string }\n\n[fhir_context_required: false]",
       {
         drug: z.string(),
         draft_letter: z.string().describe("The full PA letter text to be critiqued"),

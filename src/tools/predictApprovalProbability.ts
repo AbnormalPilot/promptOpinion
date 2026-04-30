@@ -26,7 +26,7 @@ class PredictApprovalProbabilityTool implements IMcpTool {
   registerTool(server: McpServer, _fhirConfig?: FhirConfig) {
     server.tool(
       "predict_approval_probability",
-      "Predicts the probability that a payer will approve this PA on first submission. Uses a calibrated LLM forecaster grounded in similar past cases retrieved from the self-learning memory store. Returns probability, confidence band, key factors, and primary denial risks. Calls retrieveSimilar() to anchor the prediction in real outcomes.",
+      "Predicts the probability that a payer will approve this PA on first submission. Uses a calibrated LLM forecaster grounded in similar past cases retrieved from the self-learning memory store. Returns probability, confidence band, key factors, and primary denial risks. Calls retrieveSimilar() to anchor the prediction in real outcomes.\n\noutputSchema (JSON): { predicted_probability: number, raw_probability?: number, confidence_band: 'low'|'medium'|'high', key_factors: Array<{factor: string, direction: 'positive'|'negative', weight: number, rationale: string}>, comparable_priors_used: string[], primary_denial_risks: string[], would_likely_succeed_on_appeal: boolean, rationale: string, calibration_applied?: boolean, calibration_brier?: number|null, prior_cases_count?: number }\n\n[fhir_context_required: false]",
       {
         drug: z.string().describe("Medication or procedure being requested"),
         diagnosis_icd10: z.string().describe("Primary ICD-10 diagnosis code"),

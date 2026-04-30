@@ -9,7 +9,7 @@ class SuggestCounterfactualEvidenceTool implements IMcpTool {
   registerTool(server: McpServer, _fhirConfig?: FhirConfig) {
     server.tool(
       "suggest_counterfactual_evidence",
-      "Given a current PA case and predicted approval probability, recommends the SPECIFIC additional evidence that would most increase approval probability. Returns ordered actions ranked by impact-per-effort and the maximum achievable probability if all suggestions are followed.",
+      "Given a current PA case and predicted approval probability, recommends the SPECIFIC additional evidence that would most increase approval probability. Returns ordered actions ranked by impact-per-effort and the maximum achievable probability if all suggestions are followed.\n\noutputSchema (JSON): { current_probability: number, recommended_additions: Array<{action: string, expected_lift: number, effort: 'low'|'medium'|'high', rationale: string}>, max_achievable_probability: number, fastest_path_to_approval: string[] }\n\n[fhir_context_required: false]",
       {
         drug: z.string(),
         diagnosis_icd10: z.string(),

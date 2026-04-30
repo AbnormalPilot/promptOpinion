@@ -9,7 +9,7 @@ class LearningStatsTool implements IMcpTool {
   registerTool(server: McpServer, _fhirConfig?: FhirConfig) {
     server.tool(
       "learning_stats",
-      "Returns the system's self-learning posture: memory size, Brier-score calibration, reliability diagram, and top weakness patterns harvested from adversarial reviews. Useful for trust + auditability — judges and clinicians can see the system's track record.",
+      "Returns the system's self-learning posture: memory size, Brier-score calibration, reliability diagram, and top weakness patterns harvested from adversarial reviews. Useful for trust + auditability — judges and clinicians can see the system's track record.\n\noutputSchema (JSON): { memory_size: number, calibration_brier: number|null, reliability_diagram: Array<{bin: string, predicted_avg: number, actual_rate: number, n: number}>, top_weakness_patterns: Array<{category: string, count: number, examples?: string[]}>, interpretation: string }\n\n[fhir_context_required: false]",
       {},
       async () => {
         const stats = {

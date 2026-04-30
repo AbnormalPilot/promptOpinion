@@ -44,7 +44,7 @@ class CostAlternativeAnalysisTool implements IMcpTool {
   registerTool(server: McpServer, _fhirConfig?: FhirConfig) {
     server.tool(
       "cost_alternative_analysis",
-      "Suggests therapeutic alternatives to the requested drug that may avoid PA entirely or lower patient cost. Combines RxNorm related-drug lookup with LLM clinical-equivalence reasoning and tier estimation. Surfaces a 'best_no_pa_option' so clinicians can sometimes skip PA altogether.",
+      "Suggests therapeutic alternatives to the requested drug that may avoid PA entirely or lower patient cost. Combines RxNorm related-drug lookup with LLM clinical-equivalence reasoning and tier estimation. Surfaces a 'best_no_pa_option' so clinicians can sometimes skip PA altogether.\n\noutputSchema (JSON): { requested_drug: string, requested_rxcui?: string|null, pa_likelihood_for_requested: string, alternatives: Array<{name: string, rxcui?: string|null, clinical_equivalence: string, estimated_tier?: string, pa_likelihood: string, notes?: string}>, best_no_pa_option: object|null, reasoning: string, related_count?: number }\n\n[fhir_context_required: false]",
       {
         drug: z.string(),
         diagnosis_icd10: z.string(),
