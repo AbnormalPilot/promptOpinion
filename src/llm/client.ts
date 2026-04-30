@@ -11,6 +11,12 @@ function getGroq(): Groq {
   return groq;
 }
 
+/** True if Groq calls are available + working. False if the key is missing/invalid. */
+let groqDisabled = false;
+export function isGroqAvailable(): boolean {
+  return !!process.env.GROQ_API_KEY && !groqDisabled;
+}
+
 /** Call Groq LLM with system prompt + user message. Returns raw text. */
 export async function callLLM(systemPrompt: string, userMessage: string): Promise<string> {
   try {
@@ -38,6 +44,10 @@ export async function callLLM(systemPrompt: string, userMessage: string): Promis
     const msg = err?.message || String(err);
     if (msg.includes("429") || msg.includes("rate")) {
       throw new Error("Groq rate limit hit. Wait a moment and retry.");
+    }
+    if (msg.includes("401") || msg.includes("Invalid API Key") || msg.includes("invalid_api_key")) {
+      groqDisabled = true;
+      throw new Error("Groq API key invalid — disabled for the session.");
     }
     throw new Error(`LLM error: ${msg.slice(0, 200)}`);
   }

@@ -2,10 +2,11 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { IMcpTool, textResponse } from "./types";
 import { FhirConfig } from "../fhir/client";
-import { callLLM, safeParseJSON } from "../llm/client";
+import { callLLM, safeParseJSON, isGroqAvailable } from "../llm/client";
 import { PREDICT_APPROVAL_SYSTEM } from "../llm/prompts";
 import { retrieveSimilar, formatPriorCases } from "../memory/store";
 import { calibratedProbability, brierScore } from "../learning/calibration";
+import { heuristicPredict } from "../learning/heuristic-predictor";
 
 interface PredictResponse {
   predicted_probability: number;
@@ -36,6 +37,27 @@ class PredictApprovalProbabilityTool implements IMcpTool {
       },
       async ({ drug, diagnosis_icd10, payer, evidence_summary, step_therapy_met, patient_age }) => {
         try {
+          // If LLM unavailable, use the offline heuristic predictor — keeps the
+          // tool functional in compliance review / air-gapped environments.
+          if (!isGroqAvailable()) {
+            const h = await heuristicPredict({ drug, diagnosis_icd10, payer, evidence_summary, step_therapy_met, patient_age });
+            const calibrated = calibratedProbability(h.predicted_probability);
+            return textResponse(JSON.stringify({
+              predicted_probability: calibrated,
+              raw_probability: h.predicted_probability,
+              confidence_band: calibrated >= 0.7 || calibrated <= 0.25 ? "high" : "medium",
+              key_factors: h.key_factors,
+              comparable_priors_used: h.comparable_priors_used,
+              primary_denial_risks: h.primary_denial_risks,
+              would_likely_succeed_on_appeal: h.predicted_probability < 0.4 && (step_therapy_met ?? true),
+              rationale: h.rationale,
+              calibration_applied: Math.abs(calibrated - h.predicted_probability) > 0.01,
+              calibration_brier: brierScore(),
+              prior_cases_count: h.prior_cases_count,
+              predictor_mode: "offline_heuristic",
+            }, null, 2));
+          }
+
           const priors = await retrieveSimilar({ drug, diagnosis_icd10, payer, evidence_summary }, 3);
           const priorText = formatPriorCases(priors);
 

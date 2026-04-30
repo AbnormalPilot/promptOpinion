@@ -9,10 +9,11 @@ import { SCENARIOS, GROUND_TRUTH_BINARY, EvalScenario } from "./scenarios";
 import { clearMemory, recordCase, reloadMemory, memorySize } from "../src/memory/store";
 import { logPrediction, brierScore, calibratedProbability, reliabilityDiagram } from "../src/learning/calibration";
 import { recordFindings, topPatterns } from "../src/learning/patterns";
-import { callLLM, safeParseJSON } from "../src/llm/client";
+import { callLLM, safeParseJSON, isGroqAvailable } from "../src/llm/client";
 import { PREDICT_APPROVAL_SYSTEM, ADVERSARIAL_SYSTEM } from "../src/llm/prompts";
 import { retrieveSimilar, formatPriorCases } from "../src/memory/store";
 import { checkDoseSafety, severityOf } from "../src/clinical/dosing";
+import { heuristicPredict } from "../src/learning/heuristic-predictor";
 import { existsSync as fexists, unlinkSync } from "fs";
 
 const RESULTS_DIR = "eval";
@@ -40,6 +41,21 @@ async function predictOne(s: EvalScenario): Promise<PredictResult> {
   });
   if (severityOf(safety) === "block") {
     return { predicted_probability: 0.05, primary_denial_risks: safety.map((f) => f.message) };
+  }
+
+  // If LLM unavailable, use the offline heuristic predictor.
+  if (!isGroqAvailable()) {
+    const h = await heuristicPredict({
+      drug: s.drug,
+      diagnosis_icd10: s.diagnosis_icd10,
+      payer: s.payer,
+      evidence_summary: s.evidence_summary,
+      step_therapy_met: s.step_therapy_met,
+      patient_age: s.patient_age,
+      egfr: s.egfr,
+      pregnant: s.pregnant,
+    });
+    return { predicted_probability: calibratedProbability(h.predicted_probability), primary_denial_risks: h.primary_denial_risks };
   }
 
   const userMessage = `Forecast first-submission approval probability.

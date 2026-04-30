@@ -15,8 +15,8 @@ export interface DoseSafetyFinding {
   recommendation?: string;
 }
 
-const RENAL_ADJUSTED_DRUGS: Record<string, { thresholdEgfr: number; advice: string }> = {
-  metformin: { thresholdEgfr: 30, advice: "Contraindicated when eGFR < 30. Dose reduce 30-45." },
+const RENAL_ADJUSTED_DRUGS: Record<string, { thresholdEgfr: number; advice: string; hardBlock?: boolean }> = {
+  metformin: { thresholdEgfr: 30, advice: "Contraindicated when eGFR < 30 (FDA boxed warning). Dose reduce 30-45.", hardBlock: true },
   gabapentin: { thresholdEgfr: 60, advice: "Dose adjustment required for eGFR < 60." },
   enoxaparin: { thresholdEgfr: 30, advice: "Reduce to 1 mg/kg once daily for eGFR < 30." },
   apixaban: { thresholdEgfr: 25, advice: "Reduce to 2.5 mg BID with risk factors." },
@@ -47,7 +47,7 @@ export function checkDoseSafety(input: DoseSafetyInput): DoseSafetyFinding[] {
   for (const [k, v] of Object.entries(RENAL_ADJUSTED_DRUGS)) {
     if (drug.includes(k) && input.egfr != null && input.egfr < v.thresholdEgfr) {
       findings.push({
-        level: input.egfr < v.thresholdEgfr - 10 ? "block" : "warning",
+        level: v.hardBlock ? "block" : (input.egfr < v.thresholdEgfr - 10 ? "block" : "warning"),
         message: `Renal dosing concern: eGFR ${input.egfr} below threshold ${v.thresholdEgfr} for ${k}.`,
         recommendation: v.advice,
       });
