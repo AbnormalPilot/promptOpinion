@@ -291,6 +291,7 @@ async function main() {
   }
 
   // ── 13. predict_approval_probability ─────────────────────────────────────
+  // Works offline (heuristic fallback) — does not require GROQ_API_KEY.
   console.log("\n=== 13. predict_approval_probability ===");
   const predict = await runTool(
     client,
@@ -303,7 +304,7 @@ async function main() {
       step_therapy_met: true,
       patient_age: 64,
     },
-    { groq: true }
+    {}
   );
 
   let predictedProbability: number = 0.5;
