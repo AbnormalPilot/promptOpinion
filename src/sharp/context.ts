@@ -7,11 +7,19 @@ export interface FhirContext {
   token?: string;
 }
 
-/** Extract FHIR server context from SHARP headers */
+/** Extract FHIR server context from SHARP headers.
+ *
+ * Returns context if EITHER the url header OR the access-token header is
+ * present. A common SMART/SHARP caller posture is to omit the URL header
+ * (assuming the server uses its env default) but still send a bearer token —
+ * the prior `if (!url) return null` silently dropped that token. We now
+ * fall back to FHIR_BASE_URL when url is absent so the token survives. */
 export function getFhirContext(req: Request): FhirContext | null {
-  const url = req.headers[SHARP_HEADERS.fhirServerUrl]?.toString();
-  if (!url) return null;
+  const urlHeader = req.headers[SHARP_HEADERS.fhirServerUrl]?.toString();
   const token = req.headers[SHARP_HEADERS.fhirAccessToken]?.toString();
+  if (!urlHeader && !token) return null;
+  const url = urlHeader || process.env.FHIR_BASE_URL || "";
+  if (!url) return null; // no header, no env default — genuinely no context
   return { url, token };
 }
 
