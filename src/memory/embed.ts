@@ -20,15 +20,18 @@ export async function embed(text: string): Promise<number[]> {
 }
 
 /** Last-resort deterministic embedding so memory retrieval still functions when rag-service is down.
- * Not semantic — purely surface-form. Lets eval continue running offline. */
+ * Not semantic — feature hashing with signed-bucket trick. Each token hashes
+ * to a single bucket with +/- 1 sign, so different tokens populate different
+ * dimensions independently (no 32-byte tiling). Cosine similarity then reflects
+ * token-set overlap rather than collapsing to ~1 for any pair of long inputs. */
 export function hashEmbed(text: string, dim = 384): number[] {
   const tokens = text.toLowerCase().match(/[a-z0-9]+/g) || [];
   const vec = new Array(dim).fill(0);
   for (const tok of tokens) {
     const h = createHash("sha256").update(tok).digest();
-    for (let i = 0; i < dim; i++) {
-      vec[i] += (h[i % h.length] - 128) / 128;
-    }
+    const bucket = h.readUInt32BE(0) % dim;
+    const sign = (h[4] & 1) ? 1 : -1;
+    vec[bucket] += sign;
   }
   // normalize
   const norm = Math.sqrt(vec.reduce((s, v) => s + v * v, 0)) || 1;
