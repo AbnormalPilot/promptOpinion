@@ -181,6 +181,7 @@ See [`LEARNING.md`](./LEARNING.md) for the full architecture and [`eval/REPORT.m
 | **A2A** | [a2a.dev](https://a2a.dev) v1 | `a2a-agent/src/app-factory.ts` (agent card, JSON-RPC `message/send`) |
 | **SHARP** | [Prompt Opinion extension spec](https://promptopinion.ai) | `src/sharp/context.ts` (header extraction + JWT claim fallback) |
 | **FHIR R4** | [hl7.org/fhir/R4](https://hl7.org/fhir/R4/) | `src/fhir/client.ts` (axios client against HAPI public R4) |
+| **Da Vinci PAS** | http://hl7.org/fhir/us/davinci-pas/STU2.1/ | src/fhir/pas-bundle.ts (Claim use=preauthorization + Bundle) |
 
 **FHIR resources accessed (read-only):** Patient, Condition, MedicationRequest, Encounter, Observation, AllergyIntolerance, Procedure, DiagnosticReport, DocumentReference.
 
@@ -245,6 +246,8 @@ npm run inspect
 ---
 
 ## Demo Workflow
+
+> `npm run demo`  # full v2 chain end-to-end, offline-friendly
 
 A clinician (or upstream agent) sends:
 

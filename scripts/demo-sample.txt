@@ -1,0 +1,69 @@
+
+> clinicalcontext-mcp@1.0.0 demo
+> tsx scripts/demo-local.ts
+
+[36m┌──────────────────────────────────────────────────────────────────┐[0m
+[36m│[0m[1m  ClinicalContext v2 — Local Demo Runner                          [0m[36m│[0m
+[36m│[0m  Prior Authorization Automation w/ Self-Learning Loop            [36m│[0m
+[36m│[0m  patient=131926799  drug="semaglutide 0.5mg weekly"  payer=Aetna [36m│[0m
+[36m└──────────────────────────────────────────────────────────────────┘[0m
+
+
+[35m▌ Booting rag-service (port 3001)[0m
+[2m  ────────────────────────────────────────────────────────────────[0m
+[32m  ✓ rag-service ready (244 NCD chunks indexed)[0m
+
+[35m▌ Booting MCP server (port 3000, GROQ_API_KEY empty)[0m
+[2m  ────────────────────────────────────────────────────────────────[0m
+[32m  ✓ MCP server ready[0m
+[2m    version=2.0.0  memory_size=2  brier=0.10700000000000001[0m
+
+[35m▌ Connecting MCP client → http://localhost:3000/mcp[0m
+[2m  ────────────────────────────────────────────────────────────────[0m
+[32m  ✓ connected — 19 tools registered[0m
+
+[35m▌ v2 Self-Learning Chain — Robert Barker / semaglutide / Aetna[0m
+[2m  ────────────────────────────────────────────────────────────────[0m
+[34m  [Cold] memory_size=2, brier=0.10700000000000001[0m
+[34m  Patient: Robert Barker, age 69, conditions: 0[0m
+[34m  [PREDICT] probability=0.8519528019683106, mode=offline_heuristic, top_factor={"factor":"step_therapy_met","direction":"positive","weight":1.4,"rationale":"Documented step therapy is the largest single driver of approval."}[0m
+[2m  [COUNTERFACTUAL] not needed — probability 0.8519528019683106 ≥ 0.6[0m
+[2m  [COST] (skipped — cost_alternative_analysis requires LLM)[0m
+[34m  [DRUG-IX] interactions=0[0m
+[34m  [POLICY] top NCD section: Indications & Limitations — Part 1/3[0m
+
+[36m  [OFFLINE-PREVIEW] Draft Letter Preview[0m
+[2m    Dear Aetna Reviewer,[0m
+[2m      Re: Prior Authorization for Robert Barker — semaglutide 0.5mg weekly.[0m
+[2m      Diagnosis: Type 2 Diabetes Mellitus (E11.9). Patient on metformin 1g BID >6 months,[0m
+[2m      HbA1c 8.2%, BMI 32 — step therapy satisfied per ADA 2024. Drug-interaction screen[0m
+[2m      returned 0 flag(s). Coverage policy match: "Indications & Limitations — Part 1/3".[0m
+[2m      Predicted first-submission approval probability: 85.2% (offline_heuristic).[0m
+[2m      Respectfully requesting approval.[0m
+[2m      — Dr. Smith[0m
+[32m
+  ✓ outcome recorded (approved)[0m
+[34m  [Warm] memory_size=3, brier=0.09281966214083905[32m  (+1)[0m[0m
+
+[35m▌ Tool timings[0m
+[2m  ────────────────────────────────────────────────────────────────[0m
+[2m  tool                                  duration[0m
+  learning_stats                        [36m    6 ms[0m
+  fetch_patient_context                 [36m 3974 ms[0m
+  predict_approval_probability          [36m  394 ms[0m
+  check_drug_interactions               [36m 1196 ms[0m
+  lookup_coverage_policy                [36m   17 ms[0m
+  record_pa_outcome                     [36m   31 ms[0m
+  learning_stats                        [36m    5 ms[0m
+[2m  ────────────────────────────────────────────────[0m
+  total                                 [1m5623 ms[0m
+
+[35m▌ Next steps — record the demo[0m
+[2m  ────────────────────────────────────────────────────────────────[0m
+  1. Open OBS Studio (or QuickTime → Screen Recording).
+  2. Source: this terminal window. Resolution: 1920×1080.
+  3. Re-run: [1mGROQ_API_KEY="" npm run demo[0m
+  4. Talk-track: see DEMO-SCRIPT.md.
+
+[33m  [mcp exited code=143][0m
+[33m  [rag-service exited code=143][0m
