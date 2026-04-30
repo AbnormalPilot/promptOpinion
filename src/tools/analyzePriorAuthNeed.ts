@@ -4,6 +4,8 @@ import { IMcpTool, textResponse } from "./types";
 import { FhirClient, FhirConfig } from "../fhir/client";
 import { callLLM, safeParseJSON } from "../llm/client";
 import { ANALYZE_PRIOR_AUTH_SYSTEM } from "../llm/prompts";
+import { scrubPHIObject } from "../audit/redact";
+import { writeAudit } from "../audit/middleware";
 
 class AnalyzePriorAuthNeedTool implements IMcpTool {
   registerTool(server: McpServer, fhirConfig?: FhirConfig) {
@@ -66,10 +68,28 @@ class AnalyzePriorAuthNeedTool implements IMcpTool {
             })),
           };
 
+          // PHI scrub before LLM payload (see draftPriorAuthRequest for rationale).
+          const llmSafeStaged = {
+            ...patientData,
+            patient: {
+              ...patientData.patient,
+              name: "[REDACTED-NAME]",
+              birthDate: patientData.patient.birthDate ? patientData.patient.birthDate.slice(0, 4) : null,
+            },
+          };
+          const { value: llmSafePatientData, report: redactionReport } = scrubPHIObject(llmSafeStaged);
+          writeAudit({
+            type: "phi_scrubbed",
+            tool: "analyze_prior_auth_need",
+            patient_fhir_id: pid,
+            redacted_count: redactionReport.redacted,
+            redacted_kinds: redactionReport.kinds,
+          });
+
           let userMessage = `Analyze prior authorization need for:
 - Requested: ${requested_medication_or_procedure}
 - Provider: ${requesting_provider || "Not specified"}
-- Patient data: ${JSON.stringify(patientData, null, 2)}`;
+- Patient data: ${JSON.stringify(llmSafePatientData, null, 2)}`;
 
           if (policy_context) {
             userMessage += `\n\n--- RELEVANT CMS COVERAGE POLICY ---\n${policy_context}\n--- END POLICY ---\nCite specific NCD section numbers in your analysis where applicable.`;

@@ -8,6 +8,8 @@ import { retrieveSimilar, formatPriorCases } from "../memory/store";
 import { patternsForPrompt } from "../learning/patterns";
 import { checkDoseSafety, severityOf, DoseSafetyFinding } from "../clinical/dosing";
 import { memoryCite } from "../provenance/types";
+import { scrubPHIObject } from "../audit/redact";
+import { writeAudit } from "../audit/middleware";
 
 class DraftPriorAuthRequestTool implements IMcpTool {
   registerTool(server: McpServer, fhirConfig?: FhirConfig) {
@@ -116,11 +118,34 @@ class DraftPriorAuthRequestTool implements IMcpTool {
           }, 3);
           const learningPatterns = patternsForPrompt();
 
+          // PHI scrub before LLM payload: explicitly null out direct identifiers
+          // (name, identifiers, full DOB) before running the deep regex scrubber
+          // over the rest (free-text observation valueStrings, embedded SSN/phone/etc.).
+          // Age + condition codes preserved — they are needed for clinical reasoning.
+          const llmSafeStaged = {
+            ...patientData,
+            patient: {
+              ...patientData.patient,
+              name: "[REDACTED-NAME]",
+              birthDate: patientData.patient.birthDate ? patientData.patient.birthDate.slice(0, 4) : null,
+              identifier: [],
+            },
+          };
+          const { value: llmSafePatientData, report: redactionReport } = scrubPHIObject(llmSafeStaged);
+          writeAudit({
+            type: "phi_scrubbed",
+            traceId: undefined,
+            tool: "draft_prior_auth_request",
+            patient_fhir_id: pid,
+            redacted_count: redactionReport.redacted,
+            redacted_kinds: redactionReport.kinds,
+          });
+
           let userMessage = `Draft a prior authorization request letter:
 - Requested: ${requested_medication_or_procedure}
 - Provider: ${requesting_provider || "Not specified"}
 - Payer: ${payer_name || "Insurance Company"}
-- Patient data: ${JSON.stringify(patientData, null, 2)}`;
+- Patient data: ${JSON.stringify(llmSafePatientData, null, 2)}`;
 
           if (clinical_analysis) {
             userMessage += `\n\n--- PRIOR CLINICAL ANALYSIS ---\n${clinical_analysis}\n--- END ANALYSIS ---\nIncorporate this analysis into the letter.`;
