@@ -16,3 +16,4 @@ export { patientExplainer } from "./patientExplainer";
 export { costAlternativeAnalysis } from "./costAlternativeAnalysis";
 export { recordOutcome } from "./recordOutcome";
 export { learningStats } from "./learningStats";
+export { emitPasBundle } from "./emitPasBundle";

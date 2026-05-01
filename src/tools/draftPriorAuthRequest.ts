@@ -10,6 +10,7 @@ import { checkDoseSafety, severityOf, DoseSafetyFinding } from "../clinical/dosi
 import { memoryCite } from "../provenance/types";
 import { scrubPHIObject } from "../audit/redact";
 import { writeAudit } from "../audit/middleware";
+import { buildPasBundle } from "../fhir/pas-bundle";
 
 class DraftPriorAuthRequestTool implements IMcpTool {
   registerTool(server: McpServer, fhirConfig?: FhirConfig) {
@@ -179,6 +180,24 @@ class DraftPriorAuthRequestTool implements IMcpTool {
             dose_safety: safety,
             data_completeness: patientData.data_completeness,
           };
+
+          // Da Vinci PAS bundle (machine-submittable companion to the letter).
+          // Failures must NOT block the letter — surface them in pas_warnings.
+          try {
+            const pas = buildPasBundle({
+              patient: patientData.patient,
+              activeConditions: patientData.activeConditions,
+              observations: patientData.observations,
+              requested_medication_or_procedure,
+              requesting_provider,
+              payer_name,
+              primary_icd10: diagnosis_icd10,
+            });
+            draft.pas_bundle = pas.bundle;
+            draft.pas_warnings = { warnings: pas.warnings, missing: pas.missing };
+          } catch (e: any) {
+            draft.pas_warnings = { error: `PAS bundle build failed: ${e?.message || e}` };
+          }
 
           return textResponse(JSON.stringify(draft, null, 2));
         } catch (err: any) {
