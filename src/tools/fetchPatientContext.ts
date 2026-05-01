@@ -7,7 +7,7 @@ class FetchPatientContextTool implements IMcpTool {
   registerTool(server: McpServer, fhirConfig?: FhirConfig) {
     server.tool(
       "fetch_patient_context",
-      "Call this FIRST to load a complete patient profile: demographics, active conditions, allergies, and recent procedures from FHIR R4. This is the starting point for any prior authorization workflow.",
+      "Call this FIRST to load a complete patient profile: demographics, active conditions, allergies, and recent procedures from FHIR R4. This is the starting point for any prior authorization workflow.\n\n[fhir_context_required: true]",
       { patient_id: z.string().optional().describe("FHIR Patient resource ID (auto-resolved from SHARP context if omitted)") },
       async ({ patient_id }) => {
         try {

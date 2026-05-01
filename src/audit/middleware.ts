@@ -16,11 +16,32 @@ declare global {
   }
 }
 
+/** Defensive scrubber: walks the event object and replaces any string value
+ * that looks like a Bearer token or a JWT with [REDACTED-TOKEN]. Should be a
+ * no-op given current call sites (we only persist tokenPresent: boolean), but
+ * acts as belt-and-braces if a future callsite accidentally forwards a header. */
+const BEARER_RE = /^Bearer\s/i;
+const JWT_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+function scrubTokens(v: unknown): unknown {
+  if (typeof v === "string") {
+    if (BEARER_RE.test(v) || JWT_RE.test(v)) return "[REDACTED-TOKEN]";
+    return v;
+  }
+  if (Array.isArray(v)) return v.map(scrubTokens);
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) out[k] = scrubTokens(val);
+    return out;
+  }
+  return v;
+}
+
 export function writeAudit(event: Record<string, unknown>) {
   if (!AUDIT_ENABLED) return;
   // Fire-and-forget: serialised through per-file mutex in appendJsonl.
   // Audit must never break the request path, and must never block it.
-  appendJsonl(AUDIT_LOG_PATH, { ts: new Date().toISOString(), ...event }).catch((err) => {
+  const scrubbed = scrubTokens({ ts: new Date().toISOString(), ...event }) as Record<string, unknown>;
+  appendJsonl(AUDIT_LOG_PATH, scrubbed).catch((err) => {
     console.error("audit write failed:", (err as Error).message);
   });
 }
@@ -66,4 +87,22 @@ export function auditTool(traceId: string | undefined, toolName: string, patient
     patientHash: patientHash || null,
     ...meta,
   });
+}
+
+if (process.env.AUDIT_SELFTEST === "1") {
+  const tampered = {
+    type: "tool_call",
+    bearer: "Bearer abc.def.ghi",
+    raw_jwt: "aAA-1.bBB-2.cCC-3",
+    nested: { token: "Bearer SHOULD-REDACT", inner: ["safe", "Bearer xyz"] },
+    safe: "hello world",
+  };
+  const scrubbed = scrubTokens(tampered) as any;
+  const ok =
+    scrubbed.bearer === "[REDACTED-TOKEN]" &&
+    scrubbed.raw_jwt === "[REDACTED-TOKEN]" &&
+    scrubbed.nested.token === "[REDACTED-TOKEN]" &&
+    scrubbed.nested.inner[1] === "[REDACTED-TOKEN]" &&
+    scrubbed.safe === "hello world";
+  console.log(`[audit selftest] ok=${ok} ${JSON.stringify(scrubbed)}`);
 }
