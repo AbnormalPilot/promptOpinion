@@ -159,13 +159,15 @@ Every PA the system handles makes the **next** one stronger. Three persistent st
 
 The `eval/` runner executes the 20-scenario golden set twice — **cold** (empty memory) and **warm** (memory + patterns populated) — and emits a measurable learning curve to `eval/REPORT.md`.
 
-**Measured numbers (offline heuristic predictor + memory retrieval, 20 scenarios):**
+**Measured numbers (offline heuristic predictor + memory retrieval, 20 scenarios — final post-fixer run):**
 
 | Metric | Cold | Warm | Delta |
 |---|---|---|---|
-| Brier score (lower better) | **0.047** | **0.024** | **49% better calibration** |
+| Brier score (lower better) | **0.052** | **0.039** | **26% better calibration** |
 | 0.5-threshold accuracy | 95% | 95% | — |
 | Memory size | 0 cases | 20 cases | +20 |
+
+(Earlier runs reported a steeper 0.047 → 0.024 delta — that pass triggered the temperature-scaling blend at N≥5; the post-fixer build raises the threshold to N≥10 with a slope guard, so the warm pass shows the smaller, more honest improvement that comes purely from memory retrieval rather than calibration overcorrection. See REVIEW.md H2.)
 
 The closed-loop signal is the Brier delta: predictions become measurably more calibrated as the system accumulates outcomes. The eval runs offline (no LLM key needed) so judges can reproduce the numbers without a Groq account. Re-run with `GROQ_API_KEY=... npx tsx eval/run.ts` to use the LLM-backed predictor.
 

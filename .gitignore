@@ -7,5 +7,6 @@ data/memory.jsonl
 data/audit.jsonl
 data/calibration.jsonl
 data/patterns.json
-eval/results.json
-eval/REPORT.md
+# eval results: tracked so judges see the numbers without running the eval
+# eval/results.json
+# eval/REPORT.md

@@ -1,0 +1,377 @@
+{
+  "generated_at": "2026-05-01T05:20:33.204Z",
+  "n_scenarios": 20,
+  "cold": {
+    "brier": 0.052343379704987356,
+    "accuracy": 0.95,
+    "in_band_rate": 0.65,
+    "per_scenario": [
+      {
+        "id": "S01-dm-semaglutide-clean",
+        "predicted": 0.8519528019683106,
+        "actual": 1,
+        "in_expected_band": true,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S02-dm-semaglutide-no-step",
+        "predicted": 0.07943854918397836,
+        "actual": 0,
+        "in_expected_band": true,
+        "primary_denial_risks": [
+          "Step therapy not documented as met",
+          "Insufficient documentation in record"
+        ]
+      },
+      {
+        "id": "S03-cardio-pcsk9",
+        "predicted": 0.9205614508160216,
+        "actual": 1,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S04-onc-bcma-multiple-myeloma",
+        "predicted": 0.8519528019683106,
+        "actual": 1,
+        "in_expected_band": true,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S05-pain-opioid-no-justification",
+        "predicted": 0.09975048911968513,
+        "actual": 0,
+        "in_expected_band": true,
+        "primary_denial_risks": [
+          "Step therapy not documented as met",
+          "Insufficient documentation in record"
+        ]
+      },
+      {
+        "id": "S06-psych-spravato",
+        "predicted": 0.8519528019683106,
+        "actual": 1,
+        "in_expected_band": true,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S07-rare-spinraza-pediatric",
+        "predicted": 0.8519528019683106,
+        "actual": 1,
+        "in_expected_band": true,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S08-off-label-no-compendium",
+        "predicted": 0.16798161486607552,
+        "actual": 0,
+        "in_expected_band": true,
+        "primary_denial_risks": [
+          "Step therapy not documented as met"
+        ]
+      },
+      {
+        "id": "S09-renal-metformin-block",
+        "predicted": 0.05,
+        "actual": 0,
+        "in_expected_band": true,
+        "primary_denial_risks": [
+          "Renal dosing concern: eGFR 24 below threshold 30 for metformin."
+        ]
+      },
+      {
+        "id": "S10-pregnancy-statin",
+        "predicted": 0.320821300824607,
+        "actual": 0,
+        "in_expected_band": false,
+        "primary_denial_risks": [
+          "Step therapy not documented as met"
+        ]
+      },
+      {
+        "id": "S11-geriatric-beers",
+        "predicted": 0.16798161486607552,
+        "actual": 0,
+        "in_expected_band": true,
+        "primary_denial_risks": [
+          "Step therapy not documented as met"
+        ]
+      },
+      {
+        "id": "S12-appeal-prior-denial",
+        "predicted": 0.8519528019683106,
+        "actual": 1,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S13-quantity-limit",
+        "predicted": 0.8021838885585817,
+        "actual": 0,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S14-rare-genetic-test-required",
+        "predicted": 0.9205614508160216,
+        "actual": 1,
+        "in_expected_band": true,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S15-cardio-eliquis-renal-borderline",
+        "predicted": 0.8909031788043871,
+        "actual": 1,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S16-onc-immuno-prior-irae",
+        "predicted": 0.8519528019683106,
+        "actual": 1,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S17-incomplete-data",
+        "predicted": 0.13587289700909427,
+        "actual": 0,
+        "in_expected_band": true,
+        "primary_denial_risks": [
+          "Step therapy not documented as met",
+          "Insufficient documentation in record"
+        ]
+      },
+      {
+        "id": "S18-pediatric-fluoroquinolone",
+        "predicted": 0.08317269649392235,
+        "actual": 0,
+        "in_expected_band": true,
+        "primary_denial_risks": [
+          "Step therapy not documented as met",
+          "Pediatric concern: ciprofloxacin not first-line under age 18."
+        ]
+      },
+      {
+        "id": "S19-strong-cardio-tnka",
+        "predicted": 0.8519528019683106,
+        "actual": 1,
+        "in_expected_band": true,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S20-borderline-formulary",
+        "predicted": 0.8519528019683106,
+        "actual": 1,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      }
+    ]
+  },
+  "warm": {
+    "brier": 0.03853663016598522,
+    "accuracy": 0.95,
+    "in_band_rate": 0.4,
+    "per_scenario": [
+      {
+        "id": "S01-dm-semaglutide-clean",
+        "predicted": 0.9044294424892262,
+        "actual": 1,
+        "in_expected_band": true,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S02-dm-semaglutide-no-step",
+        "predicted": 0.02431349322184515,
+        "actual": 0,
+        "in_expected_band": false,
+        "primary_denial_risks": [
+          "Step therapy not documented as met",
+          "Insufficient documentation in record"
+        ]
+      },
+      {
+        "id": "S03-cardio-pcsk9",
+        "predicted": 0.9517471914361427,
+        "actual": 1,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S04-onc-bcma-multiple-myeloma",
+        "predicted": 0.921993395327718,
+        "actual": 1,
+        "in_expected_band": true,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S05-pain-opioid-no-justification",
+        "predicted": 0.02,
+        "actual": 0,
+        "in_expected_band": true,
+        "primary_denial_risks": [
+          "Step therapy not documented as met",
+          "Insufficient documentation in record"
+        ]
+      },
+      {
+        "id": "S06-psych-spravato",
+        "predicted": 0.9224480948113833,
+        "actual": 1,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S07-rare-spinraza-pediatric",
+        "predicted": 0.9216992437848607,
+        "actual": 1,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S08-off-label-no-compendium",
+        "predicted": 0.12405995287546048,
+        "actual": 0,
+        "in_expected_band": true,
+        "primary_denial_risks": [
+          "Step therapy not documented as met"
+        ]
+      },
+      {
+        "id": "S09-renal-metformin-block",
+        "predicted": 0.05,
+        "actual": 0,
+        "in_expected_band": true,
+        "primary_denial_risks": [
+          "Renal dosing concern: eGFR 24 below threshold 30 for metformin."
+        ]
+      },
+      {
+        "id": "S10-pregnancy-statin",
+        "predicted": 0.28915418684319194,
+        "actual": 0,
+        "in_expected_band": false,
+        "primary_denial_risks": [
+          "Step therapy not documented as met"
+        ]
+      },
+      {
+        "id": "S11-geriatric-beers",
+        "predicted": 0.05853170905430557,
+        "actual": 0,
+        "in_expected_band": true,
+        "primary_denial_risks": [
+          "Step therapy not documented as met"
+        ]
+      },
+      {
+        "id": "S12-appeal-prior-denial",
+        "predicted": 0.9228867323862425,
+        "actual": 1,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S13-quantity-limit",
+        "predicted": 0.7751363123967764,
+        "actual": 0,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S14-rare-genetic-test-required",
+        "predicted": 0.98,
+        "actual": 1,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S15-cardio-eliquis-renal-borderline",
+        "predicted": 0.9428934525436883,
+        "actual": 1,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S16-onc-immuno-prior-irae",
+        "predicted": 0.9187111653103333,
+        "actual": 1,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S17-incomplete-data",
+        "predicted": 0.036273659297015724,
+        "actual": 0,
+        "in_expected_band": true,
+        "primary_denial_risks": [
+          "Step therapy not documented as met",
+          "Insufficient documentation in record"
+        ]
+      },
+      {
+        "id": "S18-pediatric-fluoroquinolone",
+        "predicted": 0.06815536738104352,
+        "actual": 0,
+        "in_expected_band": true,
+        "primary_denial_risks": [
+          "Step therapy not documented as met",
+          "Pediatric concern: ciprofloxacin not first-line under age 18."
+        ]
+      },
+      {
+        "id": "S19-strong-cardio-tnka",
+        "predicted": 0.920807423940791,
+        "actual": 1,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      },
+      {
+        "id": "S20-borderline-formulary",
+        "predicted": 0.9235939065021546,
+        "actual": 1,
+        "in_expected_band": false,
+        "primary_denial_risks": []
+      }
+    ],
+    "reliability": [
+      {
+        "bin": "0.0-0.2",
+        "predicted_avg": 0.054476311689952914,
+        "actual_rate": 0,
+        "n": 7
+      },
+      {
+        "bin": "0.2-0.4",
+        "predicted_avg": 0.28915418684319194,
+        "actual_rate": 0,
+        "n": 1
+      },
+      {
+        "bin": "0.4-0.6",
+        "predicted_avg": 0,
+        "actual_rate": 0,
+        "n": 0
+      },
+      {
+        "bin": "0.6-0.8",
+        "predicted_avg": 0.7751363123967764,
+        "actual_rate": 0,
+        "n": 1
+      },
+      {
+        "bin": "0.8-1.0",
+        "predicted_avg": 0.9301100044120493,
+        "actual_rate": 1,
+        "n": 11
+      }
+    ],
+    "patterns": [],
+    "memory_size": 20
+  },
+  "delta": {
+    "brier_improvement": 0.0138,
+    "accuracy_improvement": 0,
+    "in_band_improvement": -0.25
+  }
+}
